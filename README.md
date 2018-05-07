@@ -6,10 +6,12 @@ The project proposal is available at [CS231N_Project_Proposal.pdf](./CS231N_Proj
 
 # Setup
 
-Prerequisites:
+#### Prerequisites
 
 * **Python3**: we use Python version 3+ for this project.
 * [Pipenv](https://github.com/pypa/pipenv): Python package manager and virtual environment. Can be installed with command `pip install pipenv`.
+
+#### Initial Setup
 
 At the first time, run the following commands:
 
@@ -21,6 +23,19 @@ cd cs231n-fashion  # Changes your directory to the root of the repo.
 # pipenv --python /usr/local/bin/python3 install
 pipenv --three install  # Create a virtual env using Python3.
 ```
+
+#### Download data
+
+First, download the `json` files from the Kaggle [data page](https://www.kaggle.com/c/imaterialist-challenge-fashion-2018/data).
+
+Please download the files into **data/** directory and then unzip all of them. Then download the images using the script below:
+
+```bash
+# Change max_download parameters in the file.
+python utils/downloader.py
+```
+
+#### Each run
 
 Everytime you need to update the project or run the scripts:
 

@@ -7,6 +7,9 @@ name = "pypi"
 
 [packages]
 
+"urllib3" = "*"
+pillow = "*"
+tqdm = "*"
 
 
 [dev-packages]
