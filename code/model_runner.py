@@ -2,6 +2,7 @@ import tensorflow as tf
 import tensorflow_hub as hub
 import numpy as np
 import os
+import input_fn
 
 def model_fn(features, labels, mode):
     """Model function for fashion classes predictions.
@@ -84,16 +85,6 @@ def model_fn(features, labels, mode):
     }
     return tf.estimator.EstimatorSpec(mode=mode, loss=loss, eval_metric_ops=eval_metric_ops)
 
-import input_fn
-
-train_input_fn = lambda: input_fn.input_fn(
-        input_folder,
-        label_json_path,
-        augment=should_augment,
-        batch_size=batch_size,
-        num_threads=num_threads,
-        images_limit=images_limit)
-
 if __name__ == '__main__':
     run_config=tf.estimator.RunConfig(session_config=tf.ConfigProto(log_device_placement=True))
     # Create the estimator.
@@ -102,44 +93,52 @@ if __name__ == '__main__':
 	    model_fn=model_fn,
 	    model_dir='../model_dir/baseline')
 
-	# Train the classifier.
-	# Run evaluation every num_train_per_eval training steps.
-	# Print the evalutation data and add the data into eval_data_list.
+    # Train the classifier.
+    # Run evaluation every num_train_per_eval training steps.
+    # Print the evalutation data and add the data into eval_data_list.
 
-	has_trained_steps = 0
-	eval_data_list = []
+    has_trained_steps = 0
+    eval_data_list = []
 
 
-	# Define global variables.
-	hidden_size = 100
-	num_classes = 228
-	learning_rate = 3e-4
-	num_train_steps = -1
-	num_train_per_eval = 1000
-	batch_to_eval = 100
+    # Define global variables.
+    hidden_size = 100
+    num_classes = 228
+    learning_rate = 3e-4
+    num_train_steps = -1
+    num_train_per_eval = 1000
+    batch_to_eval = 100
 
-	# input_fn arguments.
-	should_augment = False
-	images_limit = 1000  # How many images to train.
-	batch_size = 32
-	num_threads = 8
-	input_folder = '/home/shared/cs231n-fashion/data/train_processed'
-	label_json_path = '/home/shared/cs231n-fashion/data/train.json'
+    train_input_fn = lambda: input_fn.input_fn(
+        input_folder,
+        label_json_path,
+        augment=should_augment,
+        batch_size=batch_size,
+        num_threads=num_threads,
+        images_limit=images_limit)
+    
+    # input_fn arguments.
+    should_augment = False
+    images_limit = 1000  # How many images to train.
+    batch_size = 32
+    num_threads = 8
+    input_folder = '/home/shared/cs231n-fashion/data/train_processed'
+    label_json_path = '/home/shared/cs231n-fashion/data/train.json'
 
-	# Set up some global variables
-	gpu_to_use = 0
-	os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_to_use)
+    # Set up some global variables
+    gpu_to_use = 0
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_to_use)
 
-	while num_train_steps < 0 or has_trained_steps < num_train_steps:
-	    classifier.train(train_input_fn, steps=num_train_per_eval)
-	    print("Evaluating on train data.")
-	    # TODO: add eval_input_fn.
-	    eval_data = classifier.evaluate(train_input_fn, steps=1)
-	    print(eval_data)
-	    eval_data_list.append(eval_data)
-	    
-	    has_trained_steps += num_train_per_eval
+    while num_train_steps < 0 or has_trained_steps < num_train_steps:
+        classifier.train(train_input_fn, steps=num_train_per_eval)
+        print("Evaluating on train data.")
+        # TODO: add eval_input_fn.
+        eval_data = classifier.evaluate(train_input_fn, steps=1)
+        print(eval_data)
+        eval_data_list.append(eval_data)
 
-	# Example output for running evaluate function.
-	classifier.evaluate(train_input_fn, steps=batch_to_eval)
+        has_trained_steps += num_train_per_eval
+
+    # Example output for running evaluate function.
+    classifier.evaluate(train_input_fn, steps=batch_to_eval)
 
