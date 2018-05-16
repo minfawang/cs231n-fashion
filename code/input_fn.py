@@ -1,7 +1,7 @@
 import tensorflow as tf
 import random
 
-def _corrupt_brightness(image):
+def _corrupt_brightness(image, labels):
     """Radnomly applies a random brightness change."""
     cond_brightness = tf.cast(tf.random_uniform(
         [], maxval=2, dtype=tf.int32), tf.bool)
@@ -10,7 +10,7 @@ def _corrupt_brightness(image):
     return image
 
 
-def _corrupt_contrast(image):
+def _corrupt_contrast(image, labels):
     """Randomly applies a random contrast change."""
     cond_contrast = tf.cast(tf.random_uniform(
         [], maxval=2, dtype=tf.int32), tf.bool)
@@ -19,7 +19,7 @@ def _corrupt_contrast(image):
     return image
 
 
-def _corrupt_saturation(image):
+def _corrupt_saturation(image, labels):
     """Randomly applies a random saturation change."""
     cond_saturation = tf.cast(tf.random_uniform(
         [], maxval=2, dtype=tf.int32), tf.bool)
@@ -28,7 +28,7 @@ def _corrupt_saturation(image):
     return image
 
 
-def _flip_left_right(image):
+def _flip_left_right(image, labels):
     """Randomly flips image left or right in accord."""
     seed = random.random()
     image = tf.image.random_flip_left_right(image, seed=seed)
@@ -36,7 +36,7 @@ def _flip_left_right(image):
     return image
 
 
-def _normalize_data(image, mask):
+def _normalize_data(image, label):
     """Normalize image within range 0-1."""
     image = tf.cast(image, tf.float32)
     image = image / 255.0
@@ -44,7 +44,7 @@ def _normalize_data(image, mask):
     return image
 
 
-def _parse_image_data(image_paths, mask_paths):
+def _parse_image_data(image_paths, label_paths):
     """Reads image files"""
     image_content = tf.read_file(image_paths)
 
