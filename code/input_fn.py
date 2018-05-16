@@ -144,20 +144,20 @@ def parse_labels(json_path, img_paths):
     labels=[]
     for label in labels_sparse:
         label_set=set(label)
-        labels.append([1 if i in label_set else 0 for i in range(228)])
+        labels.append([1 if (i+1) in label_set else 0 for i in range(228)])
     return labels
 
 
-def input_fn(input_folder, label_json_path, augment, batch_size, num_threads, images_limit=None):
+def input_fn(input_folder, label_json_path, batch_size, augment=False, num_threads=8, images_limit=None):
     batch_features, batch_labels, labels = None, None, None
     
     filenames = os.listdir(input_folder)
     if images_limit is not None:
         filenames = filenames[:images_limit]
     img_paths=[os.path.join(input_folder, x) for x in filenames if x.endswith(".jpg")]
-              
+
     if label_json_path:
         labels = parse_labels(label_json_path, img_paths)
-    
+
     batch_features, batch_labels = data_batch(img_paths, labels, augment, batch_size, num_threads)
     return batch_features, batch_labels
