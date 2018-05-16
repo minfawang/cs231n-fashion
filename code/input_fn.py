@@ -1,5 +1,7 @@
 import tensorflow as tf
 import random
+import os
+import json
 
 def _corrupt_brightness(image, labels):
     """Radnomly applies a random brightness change."""
@@ -7,7 +9,7 @@ def _corrupt_brightness(image, labels):
         [], maxval=2, dtype=tf.int32), tf.bool)
     image = tf.cond(cond_brightness, lambda: tf.image.random_hue(
         image, 0.1), lambda: tf.identity(image))
-    return image
+    return image, labels
 
 
 def _corrupt_contrast(image, labels):
@@ -16,7 +18,7 @@ def _corrupt_contrast(image, labels):
         [], maxval=2, dtype=tf.int32), tf.bool)
     image = tf.cond(cond_contrast, lambda: tf.image.random_contrast(
         image, 0.2, 1.8), lambda: tf.identity(image))
-    return image
+    return image, labels
 
 
 def _corrupt_saturation(image, labels):
@@ -25,7 +27,7 @@ def _corrupt_saturation(image, labels):
         [], maxval=2, dtype=tf.int32), tf.bool)
     image = tf.cond(cond_saturation, lambda: tf.image.random_saturation(
         image, 0.2, 1.8), lambda: tf.identity(image))
-    return image
+    return image, labels
 
 
 def _flip_left_right(image, labels):
@@ -33,24 +35,24 @@ def _flip_left_right(image, labels):
     seed = random.random()
     image = tf.image.random_flip_left_right(image, seed=seed)
 
-    return image
+    return image, labels
 
 
-def _normalize_data(image, label):
-    """Normalize image within range 0-1."""
+def _normalize_data(image, labels):
+    """Normalize image within range 0-1."""    
     image = tf.cast(image, tf.float32)
     image = image / 255.0
 
-    return image
+    return image, labels
 
 
-def _parse_image_data(image_paths, label_paths):
+def _parse_image_data(image_paths, labels):
     """Reads image files"""
     image_content = tf.read_file(image_paths)
 
     images = tf.image.decode_jpeg(image_content, channels=3)
 
-    return images
+    return images, labels
 
 
 def data_batch(image_paths, labels, augment=False, batch_size=64, num_threads=8):
@@ -80,7 +82,7 @@ def data_batch(image_paths, labels, augment=False, batch_size=64, num_threads=8)
 
     # Parse images and labels
     data = data.map(
-        _parse_data, num_parallel_calls=num_threads).prefetch(buffer_size)
+        _parse_image_data, num_parallel_calls=num_threads).prefetch(buffer_size)
 
     # If augmentation is to be applied
     if augment:
@@ -96,18 +98,20 @@ def data_batch(image_paths, labels, augment=False, batch_size=64, num_threads=8)
         data = data.map(_flip_left_right,
                         num_parallel_calls=num_threads).prefetch(buffer_size)
 
-    # Batch the data
+    # Shuffle and batch the data
+    data = data.shuffle(buffer_size)
     data = data.batch(batch_size)
 
     # Normalize
     data = data.map(_normalize_data,
                     num_parallel_calls=num_threads).prefetch(buffer_size)
 
-    data = data.shuffle(buffer_size)
 
     # Create iterator
-    iterator = tf.data.Iterator.from_structure(
-        data.output_types, data.output_shapes)
+    data = data.repeat()
+    iterator = data.make_one_shot_iterator()
+#     iterator = tf.data.Iterator.from_structure(
+#         data.output_types, data.output_shapes)
 
     # Next element Op TODO(binbinx): debug this with Minfa.
     next_element = iterator.get_next()
@@ -136,18 +140,24 @@ def parse_labels(json_path, img_paths):
             labelIds[imgId] = labelId
     
     # get the file id from file path
-    labels = [labelIds[x[x.rfind('/')+1:x.rfind('.')]] for x in img_paths]
+    labels_sparse = [labelIds[x[x.rfind('/')+1:x.rfind('.')]] for x in img_paths]
+    labels=[]
+    for label in labels_sparse:
+        label_set=set(label)
+        labels.append([1 if i in label_set else 0 for i in range(228)])
     return labels
-  
-  
-def input_fn(input_folder, label_json_path, augment, batch_size, num_threads):
+
+
+def input_fn(input_folder, label_json_path, augment, batch_size, num_threads, images_limit=None):
     batch_features, batch_labels, labels = None, None, None
     
-    img_paths=[os.path.join(input_folder, x) for x in os.listdir(input_folder) if x.endswith(".jpg")]
+    filenames = os.listdir(input_folder)
+    if images_limit is not None:
+        filenames = filenames[:images_limit]
+    img_paths=[os.path.join(input_folder, x) for x in filenames if x.endswith(".jpg")]
               
     if label_json_path:
-      labels=parse_labels(label_json_path, img_paths)
+        labels = parse_labels(label_json_path, img_paths)
     
     batch_features, batch_labels = data_batch(img_paths, labels, augment, batch_size, num_threads)
     return batch_features, batch_labels
-  
