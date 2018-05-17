@@ -155,14 +155,17 @@ if __name__ == '__main__':
     loss_hook = LossCheckerHook()
     while num_train_steps < 0 or steps_trained < num_train_steps:
         print("Training, step: %d..."%steps_trained)
-        classifier.train(train_input_fn, 
+        eval_data=classifier.train(train_input_fn, 
                          steps=num_train_per_eval)
+        print eval_data
         
         print("Evaluating on train, step: %d..."%steps_trained)
-        classifier.evaluate(train_input_fn, steps=num_step_to_eval)
+        eval_data=classifier.evaluate(train_input_fn, steps=num_step_to_eval)
+        print eval_data
         
         print("Evaluating on validation, step: %d..."%steps_trained)
-        classifier.evaluate(valid_input_fn, steps=num_step_to_eval)
+        eval_data=classifier.evaluate(valid_input_fn, steps=num_step_to_eval)
+        print eval_data
         
         steps_trained += num_train_per_eval
         
