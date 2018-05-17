@@ -68,7 +68,7 @@ def model_fn(features, labels, mode):
         predictions=predictions['probs'])
     
     precisions_3 = tf.metrics.precision(
-        labels=labels, predictions=predictions['pred_3']
+        labels=labels, predictions=predictions['pred_3'])
     recalls_3 = tf.metrics.recall(
         labels=labels, predictions=predictions['pred_3'])
     mean_f1_3 = (2*precisions_3[0]*recalls_3[0]/(precisions_3[0]+recalls_3[0]), precisions_3[1])    
@@ -82,7 +82,7 @@ def model_fn(features, labels, mode):
     precisions_7 = tf.metrics.precision(
         labels=labels, predictions=predictions['pred_7'])
     recalls_7 = tf.metrics.recall(
-        labels=labels, predictions=predictions['pred_7']   
+        labels=labels, predictions=predictions['pred_7'])  
     mean_f1_7 = (2*precisions_7[0]*recalls_7[0]/(precisions_7[0]+recalls_7[0]), precisions_7[1]) 
     
     eval_metric_ops = {
