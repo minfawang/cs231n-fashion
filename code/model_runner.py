@@ -18,10 +18,7 @@ def model_fn(features, labels, mode):
         estimator_spec.
     """
     # class_prob > threshold will be outputted.
-    thresholds =[0.3, 0.5, 0.7]
     threshold = 0.5
-#     threshold = tf.get_variable('threshold_unbound', initializer=0.5)
-#     threshold = tf.clip_by_value(threshold, 0.1, 0.9, name='threshold')
     
     # Input layer.
     images = features
@@ -42,7 +39,9 @@ def model_fn(features, labels, mode):
 #     outputs, _ = tf.nn.dynamic_rnn(cell=gru_cell, inputs=)
     
     predictions = {
-        'classes': raw_probs > threshold,
+        'pred_3': (raw_probs > 0.3),
+        'pred_5': (raw_probs > 0.5),
+        'pred_7': (raw_probs > 0.7),
         'probs': raw_probs,
     }
     
@@ -62,28 +61,49 @@ def model_fn(features, labels, mode):
             loss=loss,
             global_step=tf.train.get_global_step())
         return tf.estimator.EstimatorSpec(mode=mode, loss=loss, train_op=train_op)    
-    
+
     # Add evalutaion metrics (for EVAL mode).
-    precisions = tf.metrics.precision_at_thresholds(
-        labels=labels,
-        predictions=predictions['probs'],
-        thresholds=thresholds)
-    recalls = tf.metrics.recall_at_thresholds(
-        labels=labels,
-        predictions=predictions['probs'],
-        thresholds=thresholds)
     auc = tf.metrics.auc(
         labels=labels,
         predictions=predictions['probs'])
     
-    mean_f1 = (2*precisions[0]*recalls[0]/(precisions[0]+recalls[0]), precisions[1])
+    precisions_3 = tf.metrics.precision(
+        labels=labels, predictions=predictions['pred_3']
+    recalls_3 = tf.metrics.recall(
+        labels=labels, predictions=predictions['pred_3'])
+    mean_f1_3 = (2*precisions_3[0]*recalls_3[0]/(precisions_3[0]+recalls_3[0]), precisions_3[1])    
+    
+    precisions_5 = tf.metrics.precision(
+        labels=labels, predictions=predictions['pred_5'])
+    recalls_5 = tf.metrics.recall(
+        labels=labels, predictions=predictions['pred_5'])   
+    mean_f1_5 = (2*precisions_5[0]*recalls_5[0]/(precisions_5[0]+recalls_5[0]), precisions_5[1])
+    
+    precisions_7 = tf.metrics.precision(
+        labels=labels, predictions=predictions['pred_7'])
+    recalls_7 = tf.metrics.recall(
+        labels=labels, predictions=predictions['pred_7']   
+    mean_f1_7 = (2*precisions_7[0]*recalls_7[0]/(precisions_7[0]+recalls_7[0]), precisions_7[1]) 
+    
     eval_metric_ops = {
-        'precisions': precisions,
-        'recalls': recalls,
+        'precisions_0.3': precisions_3,
+        'recalls_0.3': recalls_3,
+        'mean_f1_0.3': mean_f1_3,
+        'precisions_0.5': precisions_5,
+        'recalls_0.5': recalls_5,
+        'mean_f1_0.5': mean_f1_5,
+        'precisions_0.7': precisions_7,
+        'recalls_0.7': recalls_7,
+        'mean_f1_0.7': mean_f1_7,
         'auc': auc,
-        'mean_f1': mean_f1,
     }
     return tf.estimator.EstimatorSpec(mode=mode, loss=loss, eval_metric_ops=eval_metric_ops)
+
+
+class LossCheckerHook(tf.train.SessionRunHook):
+    def begin(self):
+        self.loss_collection=tf.get_collection(tf.GraphKeys.LOSSES)
+
 
 if __name__ == '__main__':
     run_config=tf.estimator.RunConfig(session_config=tf.ConfigProto(log_device_placement=True))
@@ -96,27 +116,27 @@ if __name__ == '__main__':
     # Train the classifier.
     # Run evaluation every num_train_per_eval training steps.
     # Print the evalutation data and add the data into eval_data_list.
-
-    has_trained_steps = 0
-    eval_data_list = []
-
+    steps_trained = 0
+    
+    # input_fn arguments.
+    should_augment = False
+    batch_size = 64
+    num_threads = 8
+    train_data_dir = '/home/shared/cs231n-fashion/data/train_processed'
+    train_label = '/home/shared/cs231n-fashion/data/train.json'
+    valid_data_dir = '/home/shared/cs231n-fashion/data/validation_processed'
+    valid_label = '/home/shared/cs231n-fashion/data/validation.json'
+    
+        
     # Define global variables.
     hidden_size = 100
     num_classes = 228
     learning_rate = 3e-4
     num_train_steps = -1
     num_train_per_eval = 1000
-    
-    # input_fn arguments.
-    should_augment = False
-    # images_limit = 1000  # How many images to train.
-    batch_size = 32
-    num_threads = 8
-    train_data_dir = '/home/shared/cs231n-fashion/data/train_processed'
-    train_label = '/home/shared/cs231n-fashion/data/train.json'
-    valid_data_dir = '/home/shared/cs231n-fashion/data/validation_processed'
-    valid_label = '/home/shared/cs231n-fashion/data/validation.json'
-
+    num_step_to_eval = 1000//batch_size
+    num_iter_to_eval_on_valid = 16
+        
     os.environ["CUDA_VISIBLE_DEVICES"] = '0' # Use the first GPU
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Warning.
     
@@ -131,10 +151,18 @@ if __name__ == '__main__':
         repeat=False,
         batch_size=batch_size)
 
-    while num_train_steps < 0 or has_trained_steps < num_train_steps:
-        classifier.train(train_input_fn, steps=num_train_per_eval)
-        eval_data = classifier.evaluate(valid_input_fn)
-        has_trained_steps += num_train_per_eval
+    loss_hook = LossCheckerHook()
+    while num_train_steps < 0 or steps_trained < num_train_steps:
+        classifier.train(train_input_fn, 
+                         steps=num_train_per_eval,
+                         hooks=[loss_hook])
+        classifier.evaluate(train_input_fn, steps=num_step_to_eval)
+        classifier.evaluate(valid_input_fn, steps=num_step_to_eval)
+        steps_trained += num_train_per_eval
+        
+        if (steps_trained//num_train_per_eval)%num_iter_to_eval_on_valid == 0:
+            print ("Evaluate on full examples from validation set.")
+            classifier.evaluate(valid_input_fn)
 
     # Example output for running evaluate function.
     classifier.evaluate(valid_input_fn)
