@@ -36,7 +36,13 @@ class LossCheckerHook(tf.train.SessionRunHook):
 
 
 if __name__ == '__main__':
-    run_config=tf.estimator.RunConfig(session_config=tf.ConfigProto(log_device_placement=True))
+
+    run_config=tf.estimator.RunConfig(
+        session_config=tf.ConfigProto(log_device_placement=True),
+        save_checkpoints_secs=20*60,
+        keep_checkpoint_max=10,
+    )
+    
     # Create the estimator.
     classifier = tf.estimator.Estimator(
 	    config=run_config,
