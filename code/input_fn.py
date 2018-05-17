@@ -55,7 +55,8 @@ def _parse_image_data(image_paths, labels):
     return images, labels
 
 
-def data_batch(image_paths, labels, augment=False, batch_size=64, num_threads=8):
+def data_batch(image_paths, labels, repeat=True, 
+               augment=False, batch_size=64, num_threads=8):
     """Reads data, normalizes it, shuffles it, then batches it, returns a
        the next element in dataset op and the dataset initializer op.
        Inputs:
@@ -108,20 +109,13 @@ def data_batch(image_paths, labels, augment=False, batch_size=64, num_threads=8)
 
 
     # Create iterator
-    data = data.repeat()
+    if repeat:
+      data = data.repeat()
+      
     iterator = data.make_one_shot_iterator()
-#     iterator = tf.data.Iterator.from_structure(
-#         data.output_types, data.output_shapes)
 
-    # Next element Op TODO(binbinx): debug this with Minfa.
     next_element = iterator.get_next()
-    
     return next_element
-
-#     # Data set init. op
-#     init_op = iterator.make_initializer(data)
-
-#     return next_element, init_op
 
   
 def parse_labels(json_path, img_paths):

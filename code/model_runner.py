@@ -106,38 +106,36 @@ if __name__ == '__main__':
     learning_rate = 3e-4
     num_train_steps = -1
     num_train_per_eval = 1000
-    batch_to_eval = 100
     
     # input_fn arguments.
     should_augment = False
     # images_limit = 1000  # How many images to train.
     batch_size = 32
     num_threads = 8
-    input_folder = '/home/shared/cs231n-fashion/data/train_processed'
-    label_json_path = '/home/shared/cs231n-fashion/data/train.json'
+    train_data_dir = '/home/shared/cs231n-fashion/data/train_processed'
+    train_label = '/home/shared/cs231n-fashion/data/train.json'
+    valid_data_dir = '/home/shared/cs231n-fashion/data/validation_processed'
+    valid_label = '/home/shared/cs231n-fashion/data/validation.json'
 
     os.environ["CUDA_VISIBLE_DEVICES"] = '0' # Use the first GPU
     os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Warning.
     
     train_input_fn = lambda: input_fn.input_fn(
-        input_folder,
-        label_json_path,
-        augment=should_augment,
-        batch_size=batch_size,
-        num_threads=num_threads,
-        images_limit=images_limit)
+        train_data_dir,
+        train_label,
+        batch_size=batch_size)
 
+    valid_input_fn = lambda: input_fn.input_fn(
+        valid_data_dir,
+        valid_label,
+        repeat=False,
+        batch_size=batch_size)
 
     while num_train_steps < 0 or has_trained_steps < num_train_steps:
         classifier.train(train_input_fn, steps=num_train_per_eval)
-        print("Evaluating on train data.")
-        # TODO: add eval_input_fn.
-        eval_data = classifier.evaluate(train_input_fn, steps=1)
-        print(eval_data)
-        eval_data_list.append(eval_data)
-
+        eval_data = classifier.evaluate(valid_input_fn)
         has_trained_steps += num_train_per_eval
 
     # Example output for running evaluate function.
-    classifier.evaluate(train_input_fn, steps=batch_to_eval)
+    classifier.evaluate(valid_input_fn)
     
