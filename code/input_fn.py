@@ -101,17 +101,17 @@ def data_batch(image_paths, labels, repeat=True,
 
     # Shuffle and batch the data
     data = data.shuffle(buffer_size)
+
+    # Create iterator
+    if repeat:
+      data = data.repeat()
+
     data = data.batch(batch_size)
 
     # Normalize
     data = data.map(_normalize_data,
                     num_parallel_calls=num_threads).prefetch(buffer_size)
 
-
-    # Create iterator
-    if repeat:
-      data = data.repeat()
-      
     iterator = data.make_one_shot_iterator()
 
     next_element = iterator.get_next()
