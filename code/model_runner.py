@@ -120,7 +120,7 @@ if __name__ == '__main__':
     
     # input_fn arguments.
     should_augment = False
-    batch_size = 64
+    batch_size = 32
     num_threads = 8
     train_data_dir = '/home/shared/cs231n-fashion/data/train_processed'
     train_label = '/home/shared/cs231n-fashion/data/train.json'
@@ -138,7 +138,7 @@ if __name__ == '__main__':
     num_iter_to_eval_on_valid = 16
         
     os.environ["CUDA_VISIBLE_DEVICES"] = '0' # Use the first GPU
-    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Warning.
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' # Logging.
     
     train_input_fn = lambda: input_fn.input_fn(
         train_data_dir,
@@ -153,9 +153,11 @@ if __name__ == '__main__':
 
     loss_hook = LossCheckerHook()
     while num_train_steps < 0 or steps_trained < num_train_steps:
+        print("Training, step: %d..."%steps_trained)
         classifier.train(train_input_fn, 
                          steps=num_train_per_eval,
                          hooks=[loss_hook])
+        print("Evaluating, step: %d..."%steps_trained)
         classifier.evaluate(train_input_fn, steps=num_step_to_eval)
         classifier.evaluate(valid_input_fn, steps=num_step_to_eval)
         steps_trained += num_train_per_eval
