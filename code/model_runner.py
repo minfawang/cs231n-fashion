@@ -143,7 +143,8 @@ if __name__ == '__main__':
     train_input_fn = lambda: input_fn.input_fn(
         train_data_dir,
         train_label,
-        batch_size=batch_size)
+        batch_size=batch_size,
+        images_limit=1000)
 
     valid_input_fn = lambda: input_fn.input_fn(
         valid_data_dir,
@@ -155,11 +156,14 @@ if __name__ == '__main__':
     while num_train_steps < 0 or steps_trained < num_train_steps:
         print("Training, step: %d..."%steps_trained)
         classifier.train(train_input_fn, 
-                         steps=num_train_per_eval,
-                         hooks=[loss_hook])
-        print("Evaluating, step: %d..."%steps_trained)
+                         steps=num_train_per_eval)
+        
+        print("Evaluating on train, step: %d..."%steps_trained)
         classifier.evaluate(train_input_fn, steps=num_step_to_eval)
+        
+        print("Evaluating on validation, step: %d..."%steps_trained)
         classifier.evaluate(valid_input_fn, steps=num_step_to_eval)
+        
         steps_trained += num_train_per_eval
         
         if (steps_trained//num_train_per_eval)%num_iter_to_eval_on_valid == 0:
