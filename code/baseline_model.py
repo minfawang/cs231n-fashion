@@ -1,4 +1,11 @@
 # define the model_fn for baseline model
+import tensorflow as tf
+import tensorflow_hub as hub
+import numpy as np
+import input_fn
+
+num_classes=228
+learning_rate=3e-4
 
 def model_fn(features, labels, mode):
     """Model function for fashion classes predictions.
@@ -59,19 +66,19 @@ def model_fn(features, labels, mode):
         labels=labels, predictions=predictions['pred_3'])
     recalls_3 = tf.metrics.recall(
         labels=labels, predictions=predictions['pred_3'])
-    mean_f1_3 = (2*precisions_3[0]*recalls_3[0]/(precisions_3[0]+recalls_3[0]), precisions_3[1])    
+    mean_f1_3 = (2*precisions_3[1]*recalls_3[1]/(precisions_3[1]+recalls_3[1]), precisions_3[1])    
     
     precisions_5 = tf.metrics.precision(
         labels=labels, predictions=predictions['pred_5'])
     recalls_5 = tf.metrics.recall(
         labels=labels, predictions=predictions['pred_5'])   
-    mean_f1_5 = (2*precisions_5[0]*recalls_5[0]/(precisions_5[0]+recalls_5[0]), precisions_5[1])
+    mean_f1_5 = (2*precisions_5[1]*recalls_5[1]/(precisions_5[1]+recalls_5[1]), precisions_5[1])
     
     precisions_7 = tf.metrics.precision(
         labels=labels, predictions=predictions['pred_7'])
     recalls_7 = tf.metrics.recall(
         labels=labels, predictions=predictions['pred_7'])  
-    mean_f1_7 = (2*precisions_7[0]*recalls_7[0]/(precisions_7[0]+recalls_7[0]), precisions_7[1]) 
+    mean_f1_7 = (2*precisions_7[1]*recalls_7[1]/(precisions_7[1]+recalls_7[1]), precisions_7[1]) 
     
     eval_metric_ops = {
         'precisions_0.3': precisions_3,
@@ -86,6 +93,22 @@ def model_fn(features, labels, mode):
         'auc': auc,
     }
 
+    # the following is used or metric loging
+    #auc_log = tf.identity(auc[0], name='auc')
+    #f1_log_3 = tf.identity(mean_f1_3[0], name='f1_3')
+    #f1_log_5 = tf.identity(mean_f1_5[0], name='f1_5')
+    #f1_log_7 = tf.identity(mean_f1_7[0], name='f1_7')
+
+    tf.summary.scalar('precisions_0.3', precisions_3[1])
+    tf.summary.scalar('precisions_0.5', precisions_5[1])
+    tf.summary.scalar('precisions_0.7', precisions_7[1])
+    tf.summary.scalar('recalls_0.3', recalls_3[1])
+    tf.summary.scalar('recalls_0.5', recalls_5[1])
+    tf.summary.scalar('recalls_0.7', recalls_7[1])
+    tf.summary.scalar('f1_0.3', mean_f1_3[0])
+    tf.summary.scalar('f1_0.5', mean_f1_5[0])
+    tf.summary.scalar('f1_0.7', mean_f1_7[0])
+
     # TRAIN mode.
     if mode == tf.estimator.ModeKeys.TRAIN:
         optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
@@ -93,8 +116,7 @@ def model_fn(features, labels, mode):
             loss=loss,
             global_step=tf.train.get_global_step())
         return tf.estimator.EstimatorSpec(mode=mode, loss=loss,
-                                          train_op=train_op,
-                                          eval_metric_ops=eval_metric_ops)
+                                          train_op=train_op)
       
     if mode == tf.estimator.ModeKeys.EVAL:
         return tf.estimator.EstimatorSpec(mode=mode, loss=loss,

@@ -6,14 +6,14 @@ import input_fn
 from baseline_model import model_fn
 
 tf.app.flags.DEFINE_integer("augment", 0, "")
-tf.app.flags.DEFINE_integer("batch_size", 0, "")
-tf.app.flags.DEFINE_integer("num_threads", 0, "")
+tf.app.flags.DEFINE_integer("batch_size", 32, "")
+tf.app.flags.DEFINE_integer("num_threads", 8, "")
 
 tf.app.flags.DEFINE_string("train_data_dir", '/home/shared/cs231n-fashion/data/train_processed', "")
 tf.app.flags.DEFINE_string("train_label", '/home/shared/cs231n-fashion/data/train.json', "")
 tf.app.flags.DEFINE_string("valid_data_dir", '/home/shared/cs231n-fashion/data/validation_processed', "")
 tf.app.flags.DEFINE_string("valid_label", '/home/shared/cs231n-fashion/data/validation.json', "")
-tf.app.flags.DEFINE_string("model_dir", '../model_dir/baseline', "")
+tf.app.flags.DEFINE_string("model_dir", './model_dir/baseline', "")
 
 tf.app.flags.DEFINE_integer("hidden_size", 100, "")
 tf.app.flags.DEFINE_integer("num_classes", 228, "")
@@ -39,8 +39,8 @@ if __name__ == '__main__':
 
     run_config=tf.estimator.RunConfig(
         session_config=tf.ConfigProto(log_device_placement=True),
-        save_checkpoints_secs=20*60,
-        keep_checkpoint_max=10,
+        save_checkpoints_secs=10*60,
+        keep_checkpoint_max=5,
     )
     
     # Create the estimator.
@@ -84,13 +84,21 @@ if __name__ == '__main__':
         repeat=False,
         batch_size=batch_size)
 
-    loss_hook = LossCheckerHook()
-    
     if num_train_steps == -1:
         num_train_steps = None 
     
     if FLAGS.mode.lower() == "train":
+        print("Training mode..")
+        tf.logging.set_verbosity(tf.logging.INFO)
+        logging_hook=tf.train.LoggingTensorHook({
+		"loss": "loss",
+                #"auc": "auc",
+                #"f1_3": "f1_3",
+                #"f1_5": "f1_5",
+                #"f1_7": "f1_7",
+		}, every_n_iter=16)
         classifier.train(train_input_fn, 
+#			 hooks=[logging_hook],
                          steps=num_train_steps)
     elif FLAGS.mode.lower() == "eval":
         eval_data=classifier.evaluate(valid_input_fn)
