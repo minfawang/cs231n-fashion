@@ -99,7 +99,7 @@ if __name__ == '__main__':
 
     has_trained_steps = 0
     eval_data_list = []
-
+    tf.logging.set_verbosity('warning')
 
     # Define global variables.
     hidden_size = 100
@@ -141,4 +141,4 @@ if __name__ == '__main__':
 
     # Example output for running evaluate function.
     classifier.evaluate(train_input_fn, steps=batch_to_eval)
-
+    
