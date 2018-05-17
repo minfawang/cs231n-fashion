@@ -99,7 +99,6 @@ if __name__ == '__main__':
 
     has_trained_steps = 0
     eval_data_list = []
-    tf.logging.set_verbosity('warning')
 
     # Define global variables.
     hidden_size = 100
@@ -108,7 +107,18 @@ if __name__ == '__main__':
     num_train_steps = -1
     num_train_per_eval = 1000
     batch_to_eval = 100
+    
+    # input_fn arguments.
+    should_augment = False
+    # images_limit = 1000  # How many images to train.
+    batch_size = 32
+    num_threads = 8
+    input_folder = '/home/shared/cs231n-fashion/data/train_processed'
+    label_json_path = '/home/shared/cs231n-fashion/data/train.json'
 
+    os.environ["CUDA_VISIBLE_DEVICES"] = '0' # Use the first GPU
+    os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2' # Warning.
+    
     train_input_fn = lambda: input_fn.input_fn(
         input_folder,
         label_json_path,
@@ -116,18 +126,7 @@ if __name__ == '__main__':
         batch_size=batch_size,
         num_threads=num_threads,
         images_limit=images_limit)
-    
-    # input_fn arguments.
-    should_augment = False
-    images_limit = 1000  # How many images to train.
-    batch_size = 32
-    num_threads = 8
-    input_folder = '/home/shared/cs231n-fashion/data/train_processed'
-    label_json_path = '/home/shared/cs231n-fashion/data/train.json'
 
-    # Set up some global variables
-    gpu_to_use = 0
-    os.environ["CUDA_VISIBLE_DEVICES"] = str(gpu_to_use)
 
     while num_train_steps < 0 or has_trained_steps < num_train_steps:
         classifier.train(train_input_fn, steps=num_train_per_eval)
