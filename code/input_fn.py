@@ -142,7 +142,8 @@ def parse_labels(json_path, img_paths):
     return labels
 
 
-def input_fn(input_folder, label_json_path, batch_size, augment=False, num_threads=8, images_limit=None):
+def input_fn(input_folder, label_json_path, batch_size, repeat=False,
+             augment=False, num_threads=8, images_limit=None):
     batch_features, batch_labels, labels = None, None, None
     
     filenames = os.listdir(input_folder)
@@ -153,5 +154,5 @@ def input_fn(input_folder, label_json_path, batch_size, augment=False, num_threa
     if label_json_path:
         labels = parse_labels(label_json_path, img_paths)
 
-    batch_features, batch_labels = data_batch(img_paths, labels, augment, batch_size, num_threads)
+    batch_features, batch_labels = data_batch(img_paths, labels, repeat, augment, batch_size, num_threads)
     return batch_features, batch_labels
