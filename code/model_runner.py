@@ -40,7 +40,7 @@ if __name__ == '__main__':
     run_config=tf.estimator.RunConfig(
         session_config=tf.ConfigProto(log_device_placement=True),
         save_checkpoints_secs=10*60,
-        keep_checkpoint_max=5,
+        keep_checkpoint_max=3,
     )
     
     # Create the estimator.
@@ -126,5 +126,4 @@ if __name__ == '__main__':
 #             classifier.evaluate(valid_input_fn)
 
     # Example output for running evaluate function.
-    classifier.evaluate(valid_input_fn)
     
