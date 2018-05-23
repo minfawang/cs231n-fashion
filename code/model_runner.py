@@ -81,7 +81,7 @@ if __name__ == '__main__':
     valid_input_fn = lambda: input_fn.input_fn(
         valid_data_dir,
         valid_label,
-        repeat=False,
+        #repeat=False,
         batch_size=batch_size)
 
     if num_train_steps == -1:
