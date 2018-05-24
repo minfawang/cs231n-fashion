@@ -46,7 +46,7 @@ def _normalize_data(image, labels):
     return image, labels
 
 
-def _parse_image_data(image_paths, labels):
+def _parse_image_data_with_label(image_paths, labels):
     """Reads image files"""
     image_content = tf.read_file(image_paths)
 
@@ -55,7 +55,24 @@ def _parse_image_data(image_paths, labels):
     return images, labels
 
 
-def data_batch(image_paths, labels, repeat=True, 
+def _normalize_data(image):
+    """Normalize image within range 0-1."""    
+    image = tf.cast(image, tf.float32)
+    image = image / 255.0
+
+    return image
+
+
+def _parse_image_data(image_paths):
+    """Reads image files"""
+    image_content = tf.read_file(image_paths)
+
+    images = tf.image.decode_jpeg(image_content, channels=3)
+
+    return images
+
+
+def data_batch(image_paths, labels, repeat=True, test_mode=False,
                augment=False, batch_size=64, num_threads=8):
     """Reads data, normalizes it, shuffles it, then batches it, returns a
        the next element in dataset op and the dataset initializer op.
@@ -75,45 +92,49 @@ def data_batch(image_paths, labels, repeat=True,
     # Convert lists of paths to tensors for tensorflow
     buffer_size = int(4*batch_size)
     images_name_tensor = tf.constant(image_paths)
-    labels_tensor = tf.constant(labels)
+    if not test_mode:
+        labels_tensor = tf.constant(labels)
 
-    # Create dataset out of the 2 files:
-    data = tf.data.Dataset.from_tensor_slices(
-        (images_name_tensor, labels_tensor))
+        # Create dataset out of the 2 files:
+        data = tf.data.Dataset.from_tensor_slices(
+            (images_name_tensor, labels_tensor))
+        
+        # Parse images and labels
+        data = data.map(
+            _parse_image_data_with_label, num_parallel_calls=num_threads).prefetch(buffer_size)
 
-    # Parse images and labels
-    data = data.map(
-        _parse_image_data, num_parallel_calls=num_threads).prefetch(buffer_size)
+        # If augmentation is to be applied
+        if augment:
+            data = data.map(_corrupt_brightness,
+                            num_parallel_calls=num_threads).prefetch(buffer_size)
 
-    # If augmentation is to be applied
-    if augment:
-        data = data.map(_corrupt_brightness,
+            data = data.map(_corrupt_contrast,
+                            num_parallel_calls=num_threads).prefetch(buffer_size)
+
+            data = data.map(_corrupt_saturation,
+                            num_parallel_calls=num_threads).prefetch(buffer_size)
+
+            data = data.map(_flip_left_right,
+                            num_parallel_calls=num_threads).prefetch(buffer_size)
+        # Normalize
+        data = data.map(_normalize_data_with_label,
                         num_parallel_calls=num_threads).prefetch(buffer_size)
-
-        data = data.map(_corrupt_contrast,
+        data = data.shuffle(buffer_size)
+        
+        if repeat:
+            data = data.repeat()
+    else:
+        # test mode
+        data = tf.data.Dataset.from_tensor_slices(images_name_tensor)
+        # Parse images and labels
+        data = data.map(
+            _parse_image_data, num_parallel_calls=num_threads).prefetch(buffer_size)
+        # Normalize
+        data = data.map(_normalize_data,
                         num_parallel_calls=num_threads).prefetch(buffer_size)
-
-        data = data.map(_corrupt_saturation,
-                        num_parallel_calls=num_threads).prefetch(buffer_size)
-
-        data = data.map(_flip_left_right,
-                        num_parallel_calls=num_threads).prefetch(buffer_size)
-
-    # Shuffle and batch the data
-    data = data.shuffle(buffer_size)
-
-    # Create iterator
-    if repeat:
-      data = data.repeat()
-
+      
     data = data.batch(batch_size)
-
-    # Normalize
-    data = data.map(_normalize_data,
-                    num_parallel_calls=num_threads).prefetch(buffer_size)
-
     iterator = data.make_one_shot_iterator()
-
     next_element = iterator.get_next()
     return next_element
 
@@ -142,8 +163,8 @@ def parse_labels(json_path, img_paths):
     return labels
 
 
-def input_fn(input_folder, label_json_path, batch_size, repeat=False,
-             augment=False, num_threads=8, images_limit=None):
+def input_fn(input_folder, label_json_path, batch_size, repeat=False, 
+             test_mode=False, augment=False, num_threads=8, images_limit=None):
     batch_features, batch_labels, labels = None, None, None
     
     filenames = os.listdir(input_folder)
@@ -151,8 +172,10 @@ def input_fn(input_folder, label_json_path, batch_size, repeat=False,
         filenames = filenames[:images_limit]
     img_paths=[os.path.join(input_folder, x) for x in filenames if x.endswith(".jpg")]
 
-    if label_json_path:
+    if not test_mode:
         labels = parse_labels(label_json_path, img_paths)
+        batch_features, batch_labels = data_batch(img_paths, labels, repeat, False, augment, batch_size, num_threads)
+    else:
+        batch_features = data_batch(img_paths, labels, repeat, True, augment, batch_size, num_threads)
 
-    batch_features, batch_labels = data_batch(img_paths, labels, repeat, augment, batch_size, num_threads)
     return batch_features, batch_labels

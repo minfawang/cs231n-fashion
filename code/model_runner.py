@@ -3,17 +3,20 @@ import tensorflow_hub as hub
 import numpy as np
 import os
 import input_fn
+from tqdm import tqdm
 from baseline_model import model_fn
 
 tf.app.flags.DEFINE_integer("augment", 0, "")
 tf.app.flags.DEFINE_integer("batch_size", 32, "")
 tf.app.flags.DEFINE_integer("num_threads", 8, "")
 
-tf.app.flags.DEFINE_string("train_data_dir", '/home/shared/cs231n-fashion/data/train_processed', "")
-tf.app.flags.DEFINE_string("train_label", '/home/shared/cs231n-fashion/data/train.json', "")
-tf.app.flags.DEFINE_string("valid_data_dir", '/home/shared/cs231n-fashion/data/validation_processed', "")
-tf.app.flags.DEFINE_string("valid_label", '/home/shared/cs231n-fashion/data/validation.json', "")
-tf.app.flags.DEFINE_string("model_dir", './model_dir/baseline', "")
+tf.app.flags.DEFINE_string("train_data_dir", '/home/fashion/data/train_processed', "")
+tf.app.flags.DEFINE_string("train_label", '/home/fashion/data/train.json', "")
+tf.app.flags.DEFINE_string("valid_data_dir", '/home/fashion/data/validation_processed', "")
+tf.app.flags.DEFINE_string("valid_label", '/home/fashion/data/validation.json', "")
+tf.app.flags.DEFINE_string("test_data_dir", '/home/fashion/data/test_processed', "")
+tf.app.flags.DEFINE_string("test_prediction", '/home/shared/cs231n-fashion/submission/test_prediction.csv', "")
+tf.app.flags.DEFINE_string("model_dir", '/home/shared/cs231n-fashion/model_dir/baseline/', "")
 
 tf.app.flags.DEFINE_integer("hidden_size", 100, "")
 tf.app.flags.DEFINE_integer("num_classes", 228, "")
@@ -23,12 +26,15 @@ tf.app.flags.DEFINE_integer("num_train_per_eval", 1000, "")
 tf.app.flags.DEFINE_integer("num_step_to_eval", 50, ".")
 tf.app.flags.DEFINE_integer("num_iter_to_eval_on_valid", 16, "")
 
-tf.app.flags.DEFINE_string("mode", "train", "train, eval, or predict")
+tf.app.flags.DEFINE_string("mode", "train", "train, eval, or test")
+tf.app.flags.DEFINE_float("pred_threshold", "0.3", "the threshold for prediction")
     
 FLAGS = tf.app.flags.FLAGS
+
 os.environ["CUDA_VISIBLE_DEVICES"] = '0' # Use the first GPU
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' # Logging.
 
+NUM_TEST=39706
 
 class LossCheckerHook(tf.train.SessionRunHook):
     def begin(self):
@@ -45,9 +51,9 @@ if __name__ == '__main__':
     
     # Create the estimator.
     classifier = tf.estimator.Estimator(
-	    config=run_config,
-	    model_fn=model_fn,
-	    model_dir=FLAGS.model_dir)
+        config=run_config,
+        model_fn=model_fn,
+        model_dir=FLAGS.model_dir)
 
     # Train the classifier.
     # Run evaluation every num_train_per_eval training steps.
@@ -83,6 +89,13 @@ if __name__ == '__main__':
         valid_label,
         #repeat=False,
         batch_size=batch_size)
+    
+    test_input_fn = lambda: input_fn.input_fn(
+        FLAGS.test_data_dir,
+        None,
+        repeat=False,
+        test_mode=True,
+        batch_size=batch_size)
 
     if num_train_steps == -1:
         num_train_steps = None 
@@ -91,39 +104,30 @@ if __name__ == '__main__':
         print("Training mode..")
         tf.logging.set_verbosity(tf.logging.INFO)
         logging_hook=tf.train.LoggingTensorHook({
-		"loss": "loss",
+            "loss": "loss",
                 #"auc": "auc",
                 #"f1_3": "f1_3",
                 #"f1_5": "f1_5",
                 #"f1_7": "f1_7",
-		}, every_n_iter=16)
+        }, every_n_iter=16)
         classifier.train(train_input_fn, 
-#			 hooks=[logging_hook],
+#       hooks=[logging_hook],
                          steps=num_train_steps)
     elif FLAGS.mode.lower() == "eval":
         eval_data=classifier.evaluate(valid_input_fn)
         print("Eval data: ", eval_data)
-    else:
-        print("not supported yet")
-            
-#     while num_train_steps < 0 or steps_trained < num_train_steps:
-#         print("Training, step: %d..."%steps_trained)
-#         classifier.train(train_input_fn, 
-#                          steps=num_train_per_eval)
+    elif FLAGS.mode.lower() == "test":
+        print("Saving test data to: ", FLAGS.test_prediction)
+        f=open(FLAGS.test_prediction, "w")
+        f.write("image_id,label_id\n")
+        test_pred=classifier.predict(test_input_fn)
+        img_id=1
         
-#         print("Evaluating on train, step: %d..."%steps_trained)
-#         eval_data=classifier.evaluate(train_input_fn, steps=num_step_to_eval)
-#         print("Train data: ",eval_data)
-        
-#         print("Evaluating on validation, step: %d..."%steps_trained)
-#         eval_data=classifier.evaluate(valid_input_fn, steps=num_step_to_eval)
-#         print("Eval data: ", eval_data)
-        
-#         steps_trained += num_train_per_eval
-        
-#         if (steps_trained//num_train_per_eval)%num_iter_to_eval_on_valid == 0:
-#             print ("Evaluate on full examples from validation set.")
-#             classifier.evaluate(valid_input_fn)
-
-    # Example output for running evaluate function.
-    
+        with tqdm(total=NUM_TEST) as progress_bar:
+            for pred in test_pred:
+                f.write("%d,%s\n"%(img_id,
+                                 " ".join([str(i+1) for i in range(len(pred['probs'])) if pred['probs'][i] >= FLAGS.pred_threshold])))
+                img_id += 1
+            progress_bar.update(1)
+        print("Processed %d examples. Good Luck! :)"%(img_id))
+        f.close()

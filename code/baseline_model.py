@@ -20,8 +20,6 @@ def model_fn(features, labels, mode):
     Returns:
         estimator_spec.
     """
-    # class_prob > threshold will be outputted.
-    threshold = 0.5
     
     # Input layer.
     images = features
@@ -42,9 +40,6 @@ def model_fn(features, labels, mode):
 #     outputs, _ = tf.nn.dynamic_rnn(cell=gru_cell, inputs=)
     
     predictions = {
-        'pred_3': (raw_probs > 0.3),
-        'pred_5': (raw_probs > 0.5),
-        'pred_7': (raw_probs > 0.7),
         'probs': raw_probs,
     }
     

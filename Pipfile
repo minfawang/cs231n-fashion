@@ -9,7 +9,7 @@ pillow = "*"
 tqdm = "*"
 jupyter = "*"
 ipykernel = "*"
-tensorflow = "*"
+tensorflow-gpu = "*"
 tensorflow-hub = "*"
 
 [dev-packages]
