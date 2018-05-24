@@ -41,6 +41,9 @@ def model_fn(features, labels, mode):
     
     predictions = {
         'probs': raw_probs,
+        'pred_15': raw_probs>0.15,
+        'pred_2': raw_probs>0.2,
+        'pred_25': raw_probs>0.25,
         'pred_3': raw_probs>0.3,
         'pred_5': raw_probs>0.5,
         'pred_7': raw_probs>0.7,
@@ -80,26 +83,39 @@ def model_fn(features, labels, mode):
         labels=labels, predictions=predictions['pred_7'])  
     mean_f1_7 = (2*precisions_7[0]*recalls_7[0]/(precisions_7[0]+recalls_7[0]), 
                  tf.group(precisions_7[1], recalls_7[1]))
-    
-    eval_metric_ops = {
-        'precisions_0.3': precisions_3,
-        'recalls_0.3': recalls_3,
-        'mean_f1_0.3': mean_f1_3,
-        'precisions_0.5': precisions_5,
-        'recalls_0.5': recalls_5,
-        'mean_f1_0.5': mean_f1_5,
-        'precisions_0.7': precisions_7,
-        'recalls_0.7': recalls_7,
-        'mean_f1_0.7': mean_f1_7,
-        'auc': auc,
-    }
 
+#     eval_metric_ops = {
+#         'precisions_0.3': precisions_3,
+#         'recalls_0.3': recalls_3,
+#         'mean_f1_0.3': mean_f1_3,
+#         'precisions_0.5': precisions_5,
+#         'recalls_0.5': recalls_5,
+#         'mean_f1_0.5': mean_f1_5,
+#         'precisions_0.7': precisions_7,
+#         'recalls_0.7': recalls_7,
+#         'mean_f1_0.7': mean_f1_7,
+#         'auc': auc,
+#     }
+    
+    eval_metric_ops = {'auc':auc}
+    thresholds = [0.1, 0.15, 0.2, 0.25, 0.3, 0.5, 0.7]
+    precisions, precisions_op = tf.metrics.precision_at_thresholds(labels, predictions['probs'], thresholds)
+    recalls, recalls_op = tf.metrics.recall_at_thresholds(labels, predictions['probs'], thresholds)
+    
+    for i in range(len(thresholds)):
+        tag=str(thresholds[i])
+        eval_metric_ops['precisions_'+tag]=(precisions[i], precisions_op[i])
+        eval_metric_ops['recalls_'+tag]=(recalls[i], recalls_op[i])
+        eval_metric_ops['f1_'+tag]=(2*precisions[i]*recalls[i]/(precisions[i]+recalls[i]), 
+                                       tf.group(precisions_op[i], recalls_op[i]))
+        
     # the following is used or metric loging
     #auc_log = tf.identity(auc[0], name='auc')
     #f1_log_3 = tf.identity(mean_f1_3[0], name='f1_3')
     #f1_log_5 = tf.identity(mean_f1_5[0], name='f1_5')
     #f1_log_7 = tf.identity(mean_f1_7[0], name='f1_7')
 
+    # Only add 0.3, 0.5, 0.7 to the train graph for now.
     tf.summary.scalar('precisions_0.3', precisions_3[1])
     tf.summary.scalar('precisions_0.5', precisions_5[1])
     tf.summary.scalar('precisions_0.7', precisions_7[1])
@@ -109,6 +125,7 @@ def model_fn(features, labels, mode):
     tf.summary.scalar('f1_0.3', mean_f1_3[0])
     tf.summary.scalar('f1_0.5', mean_f1_5[0])
     tf.summary.scalar('f1_0.7', mean_f1_7[0])
+    tf.summary.scalar('auc', auc[1])
 
     # TRAIN mode.
     if mode == tf.estimator.ModeKeys.TRAIN:

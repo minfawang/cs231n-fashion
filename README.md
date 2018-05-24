@@ -44,3 +44,15 @@ pipenv shell  # Enter the virtual env.
 # Make updates.
 exit
 ```
+
+
+#### Useful commands
+```bash
+# this will download the test_prediction to local
+gcloud compute scp binbinx@cs231n-fashion-ssd:/home/shared/cs231n-fashion/submission/test_prediction.csv .
+```
+
+```bash
+# after logging in, run the following command to monitor memory usage
+sh /home/binbinx/memusg.sh
+```
