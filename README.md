@@ -56,3 +56,18 @@ gcloud compute scp binbinx@cs231n-fashion-ssd:/home/shared/cs231n-fashion/submis
 # after logging in, run the following command to monitor memory usage
 sh /home/binbinx/memusg.sh
 ```
+
+```bash
+# run training.
+python code/model_runner.py --mode=train --module_trainable=true --model_dir=/home/shared/cs231n-fashion/model_dir/baseline2/ 
+```
+
+```bash
+# run eval.
+python code/model_runner.py --mode=eval --model_dir=/home/shared/cs231n-fashion/model_dir/baseline2/ --eval_thresholds=0.3;0.5;0.7;0.75;0.8;0.85;0.9
+```
+
+```bash
+# run test, generate submission file
+python code/model_runner.py --mode=test --model_dir=/home/shared/cs231n-fashion/model_dir/baseline2/ --pred_threshold=0.8
+```

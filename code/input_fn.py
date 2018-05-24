@@ -160,7 +160,7 @@ def parse_labels(json_path, img_paths):
 
 
 def input_fn(input_folder, label_json_path, batch_size, repeat=True, 
-             test_mode=False, augment=False, num_threads=8, images_limit=None, test_size=39706):
+             test_mode=False, augment=False, num_threads=6, images_limit=None, test_size=39706):
     batch_features, batch_labels, labels, filenames = None, None, None, None
     
     if test_mode:
