@@ -45,8 +45,8 @@ if __name__ == '__main__':
 
     run_config=tf.estimator.RunConfig(
         session_config=tf.ConfigProto(log_device_placement=True),
-        save_checkpoints_secs=10*60,
-        keep_checkpoint_max=3,
+        save_checkpoints_secs=30*60,
+        keep_checkpoint_max=10,
     )
     
     # Create the estimator.

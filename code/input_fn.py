@@ -160,10 +160,14 @@ def parse_labels(json_path, img_paths):
 
 
 def input_fn(input_folder, label_json_path, batch_size, repeat=False, 
-             test_mode=False, augment=False, num_threads=8, images_limit=None):
-    batch_features, batch_labels, labels = None, None, None
+             test_mode=False, augment=False, num_threads=8, images_limit=None, test_size=39706):
+    batch_features, batch_labels, labels, filenames = None, None, None, None
     
-    filenames = os.listdir(input_folder)
+    if test_mode:
+        filenames = [os.path.join(input_folder, "%d.jpg"%(i+1)) for i in range(test_size)]
+    else:
+        filenames = os.listdir(input_folder)
+        
     if images_limit is not None:
         filenames = filenames[:images_limit]
     img_paths=[os.path.join(input_folder, x) for x in filenames if x.endswith(".jpg")]
