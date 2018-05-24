@@ -72,8 +72,8 @@ def _parse_image_data(image_paths):
     return images
 
 
-def data_batch(image_paths, labels, shuffle_repeat=True, test_mode=False,
-               augment=False, batch_size=64, num_threads=8):
+def data_batch(image_paths, labels, shuffle_repeat, test_mode,
+               augment, batch_size, num_threads):
     """Reads data, normalizes it, shuffles it, then batches it, returns a
        the next element in dataset op and the dataset initializer op.
        Inputs:
@@ -159,7 +159,7 @@ def parse_labels(json_path, img_paths):
     return labels
 
 
-def input_fn(input_folder, label_json_path, batch_size, repeat=False, 
+def input_fn(input_folder, label_json_path, batch_size, repeat=True, 
              test_mode=False, augment=False, num_threads=8, images_limit=None, test_size=39706):
     batch_features, batch_labels, labels, filenames = None, None, None, None
     

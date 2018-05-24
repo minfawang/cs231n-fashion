@@ -16,7 +16,7 @@ tf.app.flags.DEFINE_string("valid_data_dir", '/home/fashion/data/validation_proc
 tf.app.flags.DEFINE_string("valid_label", '/home/fashion/data/validation.json', "")
 tf.app.flags.DEFINE_string("test_data_dir", '/home/fashion/data/test_processed', "")
 tf.app.flags.DEFINE_string("test_prediction", '/home/shared/cs231n-fashion/submission/test_prediction.csv', "")
-tf.app.flags.DEFINE_string("model_dir", '/home/shared/cs231n-fashion/model_dir/baseline/', "")
+tf.app.flags.DEFINE_string("model_dir", '/home/shared/cs231n-fashion/model_dir/baseline2/', "")
 
 tf.app.flags.DEFINE_integer("hidden_size", 100, "")
 tf.app.flags.DEFINE_integer("num_classes", 228, "")
@@ -25,9 +25,11 @@ tf.app.flags.DEFINE_integer("num_train_steps", -1, "")
 tf.app.flags.DEFINE_integer("num_train_per_eval", 1000, "")
 tf.app.flags.DEFINE_integer("num_step_to_eval", 50, ".")
 tf.app.flags.DEFINE_integer("num_iter_to_eval_on_valid", 16, "")
+tf.app.flags.DEFINE_string("eval_thresholds", "0.1;0.15;0.2;0.25;0.3;0.5;0.7", "the thresholds used in eval mode.")
+tf.app.flags.DEFINE_bool("module_trainable", False, "whether the pretrained model is trainable or not.")
 
 tf.app.flags.DEFINE_string("mode", "train", "train, eval, or test")
-tf.app.flags.DEFINE_float("pred_threshold", "0.3", "the threshold for prediction")
+tf.app.flags.DEFINE_float("pred_threshold", "0.2", "the threshold for prediction")
     
 FLAGS = tf.app.flags.FLAGS
 
@@ -49,11 +51,20 @@ if __name__ == '__main__':
         keep_checkpoint_max=10,
     )
     
+    params={
+        'learning_rate': FLAGS.learning_rate,
+        'num_classes': FLAGS.num_classes,
+        'module_trainable': FLAGS.module_trainable,
+        'eval_thresholds': [float(i) for i in FLAGS.eval_thresholds.split(';')]
+    }
+    
     # Create the estimator.
     classifier = tf.estimator.Estimator(
         config=run_config,
         model_fn=model_fn,
-        model_dir=FLAGS.model_dir)
+        model_dir=FLAGS.model_dir,
+        params=params
+    )
 
     # Train the classifier.
     # Run evaluation every num_train_per_eval training steps.
@@ -82,7 +93,9 @@ if __name__ == '__main__':
     train_input_fn = lambda: input_fn.input_fn(
         train_data_dir,
         train_label,
-        batch_size=batch_size)
+        batch_size=batch_size,
+        images_limit=100,
+    )
 
     valid_input_fn = lambda: input_fn.input_fn(
         valid_data_dir,

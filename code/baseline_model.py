@@ -4,10 +4,45 @@ import tensorflow_hub as hub
 import numpy as np
 import input_fn
 
-num_classes=228
-learning_rate=3e-4
+def build_graph(images, labels, params):
+    """Build the computation graph, when we have a new model, simply modify this function.
+    
+    Returns:
+        raw_probs: multiclass prediction prob
+        loss: loss
+    """
+    num_classes=params['num_classes']
+    learning_rate=params['learning_rate']
+    module_trainable=params['module_trainable']
+    
+    # Input layer.
+    module = hub.Module("https://tfhub.dev/google/imagenet/inception_resnet_v2/feature_vector/1",
+                       trainable=module_trainable)
+    features = module(images)  # (batch_size, D)
 
-def model_fn(features, labels, mode):
+    #     # RNN layer.
+#     gru_cell = tf.nn.rnn_cell.GRUCell(hidden_size)
+#     outputs, _ = tf.nn.dynamic_rnn(cell=gru_cell, inputs=)
+
+    # Create multi-head sigmoid outputs.
+    # It measures the independent probability of a class showing in the image.
+    raw_logits = tf.contrib.layers.fully_connected(
+        inputs=features,
+        num_outputs=num_classes,
+        activation_fn=None)  # (batch_size, num_classes)
+    
+    raw_probs = tf.sigmoid(raw_logits)  # (batch_size, num_classes)
+    
+    loss = tf.losses.sigmoid_cross_entropy(
+        multi_class_labels=labels,
+        logits=raw_logits)
+    
+    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+    
+    return raw_probs, loss, optimizer
+
+
+def model_fn(features, labels, mode, params):
     """Model function for fashion classes predictions.
     
     Inputs:
@@ -20,122 +55,57 @@ def model_fn(features, labels, mode):
     Returns:
         estimator_spec.
     """
+    thresholds=params['eval_thresholds']
     
-    # Input layer.
-    images = features
-    module = hub.Module("https://tfhub.dev/google/imagenet/inception_resnet_v2/feature_vector/1")
-    features = module(images)  # (batch_size, D)
-    
-    # Create multi-head sigmoid outputs.
-    # It measures the independent probability of a class showing in the image.
-    raw_logits = tf.contrib.layers.fully_connected(
-        inputs=features,
-        num_outputs=num_classes,
-        activation_fn=None)  # (batch_size, num_classes)
-    
-    raw_probs = tf.sigmoid(raw_logits)  # (batch_size, num_classes)
-    
-#     # RNN layer.
-#     gru_cell = tf.nn.rnn_cell.GRUCell(hidden_size)
-#     outputs, _ = tf.nn.dynamic_rnn(cell=gru_cell, inputs=)
-    
+    # build graph, get raw_prob logits
+    raw_probs, loss, optimizer = build_graph(features, labels, params)
+
     predictions = {
         'probs': raw_probs,
-        'pred_15': raw_probs>0.15,
-        'pred_2': raw_probs>0.2,
-        'pred_25': raw_probs>0.25,
-        'pred_3': raw_probs>0.3,
-        'pred_5': raw_probs>0.5,
-        'pred_7': raw_probs>0.7,
     }
     
     # PREDICT mode.
     if mode == tf.estimator.ModeKeys.PREDICT:
         return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
     
-    # Calculate loss (for both TRAIN and EVAL mode).
-    loss = tf.losses.sigmoid_cross_entropy(
-        multi_class_labels=labels,
-        logits=raw_logits)
-    
     # Add evalutaion metrics (for EVAL mode).
     auc = tf.metrics.auc(
         labels=labels,
         predictions=predictions['probs'])
     
-    precisions_3 = tf.metrics.precision(
-        labels=labels, predictions=predictions['pred_3'])
-    recalls_3 = tf.metrics.recall(
-        labels=labels, predictions=predictions['pred_3'])
-    mean_f1_3 = (2*precisions_3[0]*recalls_3[0]/(precisions_3[0]+recalls_3[0]), 
-                 tf.group(precisions_3[1], recalls_3[1]))
-    
-    precisions_5 = tf.metrics.precision(
-        labels=labels, predictions=predictions['pred_5'])
-    recalls_5 = tf.metrics.recall(
-        labels=labels, predictions=predictions['pred_5'])   
-    mean_f1_5 = (2*precisions_5[0]*recalls_5[0]/(precisions_5[0]+recalls_5[0]), 
-                 tf.group(precisions_5[1], recalls_5[1]))
-    
-    precisions_7 = tf.metrics.precision(
-        labels=labels, predictions=predictions['pred_7'])
-    recalls_7 = tf.metrics.recall(
-        labels=labels, predictions=predictions['pred_7'])  
-    mean_f1_7 = (2*precisions_7[0]*recalls_7[0]/(precisions_7[0]+recalls_7[0]), 
-                 tf.group(precisions_7[1], recalls_7[1]))
-
-#     eval_metric_ops = {
-#         'precisions_0.3': precisions_3,
-#         'recalls_0.3': recalls_3,
-#         'mean_f1_0.3': mean_f1_3,
-#         'precisions_0.5': precisions_5,
-#         'recalls_0.5': recalls_5,
-#         'mean_f1_0.5': mean_f1_5,
-#         'precisions_0.7': precisions_7,
-#         'recalls_0.7': recalls_7,
-#         'mean_f1_0.7': mean_f1_7,
-#         'auc': auc,
-#     }
-    
-    eval_metric_ops = {'auc':auc}
-    thresholds = [0.1, 0.15, 0.2, 0.25, 0.3, 0.5, 0.7]
+    eval_metric_ops = {'auc': auc}
     precisions, precisions_op = tf.metrics.precision_at_thresholds(labels, predictions['probs'], thresholds)
     recalls, recalls_op = tf.metrics.recall_at_thresholds(labels, predictions['probs'], thresholds)
     
+    summary_p=[]
+    summary_r=[]
+    summary_f1=[]
     for i in range(len(thresholds)):
         tag=str(thresholds[i])
-        eval_metric_ops['precisions_'+tag]=(precisions[i], precisions_op[i])
-        eval_metric_ops['recalls_'+tag]=(recalls[i], recalls_op[i])
-        eval_metric_ops['f1_'+tag]=(2*precisions[i]*recalls[i]/(precisions[i]+recalls[i]), 
-                                       tf.group(precisions_op[i], recalls_op[i]))
+        p_tag='precisions_'+tag
+        r_tag='recalls_'+tag
+        f1_tag='f1_'+tag
         
-    # the following is used or metric loging
-    #auc_log = tf.identity(auc[0], name='auc')
-    #f1_log_3 = tf.identity(mean_f1_3[0], name='f1_3')
-    #f1_log_5 = tf.identity(mean_f1_5[0], name='f1_5')
-    #f1_log_7 = tf.identity(mean_f1_7[0], name='f1_7')
-
-    # Only add 0.3, 0.5, 0.7 to the train graph for now.
-    tf.summary.scalar('precisions_0.3', precisions_3[1])
-    tf.summary.scalar('precisions_0.5', precisions_5[1])
-    tf.summary.scalar('precisions_0.7', precisions_7[1])
-    tf.summary.scalar('recalls_0.3', recalls_3[1])
-    tf.summary.scalar('recalls_0.5', recalls_5[1])
-    tf.summary.scalar('recalls_0.7', recalls_7[1])
-    tf.summary.scalar('f1_0.3', mean_f1_3[0])
-    tf.summary.scalar('f1_0.5', mean_f1_5[0])
-    tf.summary.scalar('f1_0.7', mean_f1_7[0])
+        eval_metric_ops[p_tag]=(precisions[i], precisions_op[i])
+        eval_metric_ops[r_tag]=(recalls[i], recalls_op[i])
+        eval_metric_ops[f1_tag]=(2*precisions[i]*recalls[i]/(precisions[i]+recalls[i]+1e-10),
+                                 tf.group(precisions_op[i], recalls_op[i]))
+        
+        summary_p.append(tf.summary.scalar(p_tag, precisions_op[i], family='precisions'))
+        summary_r.append(tf.summary.scalar(r_tag, recalls_op[i], family='recalls'))
+        summary_f1.append(tf.summary.scalar(f1_tag, eval_metric_ops[f1_tag][0], family='f1_scores'))
+    
     tf.summary.scalar('auc', auc[1])
+    tf.summary.merge_all()
 
     # TRAIN mode.
     if mode == tf.estimator.ModeKeys.TRAIN:
-        optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
         train_op = optimizer.minimize(
             loss=loss,
             global_step=tf.train.get_global_step())
         return tf.estimator.EstimatorSpec(mode=mode, loss=loss,
                                           train_op=train_op)
-      
+    # EVAL mode.
     if mode == tf.estimator.ModeKeys.EVAL:
         return tf.estimator.EstimatorSpec(mode=mode, loss=loss,
                                           eval_metric_ops=eval_metric_ops)
