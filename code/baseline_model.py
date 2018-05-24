@@ -41,6 +41,9 @@ def model_fn(features, labels, mode):
     
     predictions = {
         'probs': raw_probs,
+        'pred_3': raw_probs>0.3,
+        'pred_5': raw_probs>0.5,
+        'pred_7': raw_probs>0.7,
     }
     
     # PREDICT mode.
@@ -61,19 +64,22 @@ def model_fn(features, labels, mode):
         labels=labels, predictions=predictions['pred_3'])
     recalls_3 = tf.metrics.recall(
         labels=labels, predictions=predictions['pred_3'])
-    mean_f1_3 = (2*precisions_3[1]*recalls_3[1]/(precisions_3[1]+recalls_3[1]), precisions_3[1])    
+    mean_f1_3 = (2*precisions_3[0]*recalls_3[0]/(precisions_3[0]+recalls_3[0]), 
+                 tf.group(precisions_3[1], recalls_3[1]))
     
     precisions_5 = tf.metrics.precision(
         labels=labels, predictions=predictions['pred_5'])
     recalls_5 = tf.metrics.recall(
         labels=labels, predictions=predictions['pred_5'])   
-    mean_f1_5 = (2*precisions_5[1]*recalls_5[1]/(precisions_5[1]+recalls_5[1]), precisions_5[1])
+    mean_f1_5 = (2*precisions_5[0]*recalls_5[0]/(precisions_5[0]+recalls_5[0]), 
+                 tf.group(precisions_5[1], recalls_5[1]))
     
     precisions_7 = tf.metrics.precision(
         labels=labels, predictions=predictions['pred_7'])
     recalls_7 = tf.metrics.recall(
         labels=labels, predictions=predictions['pred_7'])  
-    mean_f1_7 = (2*precisions_7[1]*recalls_7[1]/(precisions_7[1]+recalls_7[1]), precisions_7[1]) 
+    mean_f1_7 = (2*precisions_7[0]*recalls_7[0]/(precisions_7[0]+recalls_7[0]), 
+                 tf.group(precisions_7[1], recalls_7[1]))
     
     eval_metric_ops = {
         'precisions_0.3': precisions_3,

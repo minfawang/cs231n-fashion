@@ -38,7 +38,7 @@ def _flip_left_right(image, labels):
     return image, labels
 
 
-def _normalize_data(image, labels):
+def _normalize_data_with_label(image, labels):
     """Normalize image within range 0-1."""    
     image = tf.cast(image, tf.float32)
     image = image / 255.0
@@ -72,7 +72,7 @@ def _parse_image_data(image_paths):
     return images
 
 
-def data_batch(image_paths, labels, repeat=True, test_mode=False,
+def data_batch(image_paths, labels, shuffle_repeat=True, test_mode=False,
                augment=False, batch_size=64, num_threads=8):
     """Reads data, normalizes it, shuffles it, then batches it, returns a
        the next element in dataset op and the dataset initializer op.
@@ -107,21 +107,18 @@ def data_batch(image_paths, labels, repeat=True, test_mode=False,
         if augment:
             data = data.map(_corrupt_brightness,
                             num_parallel_calls=num_threads).prefetch(buffer_size)
-
             data = data.map(_corrupt_contrast,
                             num_parallel_calls=num_threads).prefetch(buffer_size)
-
             data = data.map(_corrupt_saturation,
                             num_parallel_calls=num_threads).prefetch(buffer_size)
-
             data = data.map(_flip_left_right,
                             num_parallel_calls=num_threads).prefetch(buffer_size)
         # Normalize
         data = data.map(_normalize_data_with_label,
                         num_parallel_calls=num_threads).prefetch(buffer_size)
-        data = data.shuffle(buffer_size)
         
-        if repeat:
+        if shuffle_repeat:
+            data = data.shuffle(buffer_size)
             data = data.repeat()
     else:
         # test mode
@@ -135,8 +132,7 @@ def data_batch(image_paths, labels, repeat=True, test_mode=False,
       
     data = data.batch(batch_size)
     iterator = data.make_one_shot_iterator()
-    next_element = iterator.get_next()
-    return next_element
+    return iterator.get_next()
 
   
 def parse_labels(json_path, img_paths):

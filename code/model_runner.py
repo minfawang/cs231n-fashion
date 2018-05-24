@@ -87,7 +87,7 @@ if __name__ == '__main__':
     valid_input_fn = lambda: input_fn.input_fn(
         valid_data_dir,
         valid_label,
-        #repeat=False,
+        repeat=False,
         batch_size=batch_size)
     
     test_input_fn = lambda: input_fn.input_fn(
@@ -105,10 +105,6 @@ if __name__ == '__main__':
         tf.logging.set_verbosity(tf.logging.INFO)
         logging_hook=tf.train.LoggingTensorHook({
             "loss": "loss",
-                #"auc": "auc",
-                #"f1_3": "f1_3",
-                #"f1_5": "f1_5",
-                #"f1_7": "f1_7",
         }, every_n_iter=16)
         classifier.train(train_input_fn, 
 #       hooks=[logging_hook],
@@ -128,6 +124,6 @@ if __name__ == '__main__':
                 f.write("%d,%s\n"%(img_id,
                                  " ".join([str(i+1) for i in range(len(pred['probs'])) if pred['probs'][i] >= FLAGS.pred_threshold])))
                 img_id += 1
-            progress_bar.update(1)
+                progress_bar.update(1)
         print("Processed %d examples. Good Luck! :)"%(img_id))
         f.close()
