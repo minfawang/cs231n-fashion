@@ -3,6 +3,7 @@ import tensorflow as tf
 import tensorflow_hub as hub
 import numpy as np
 import input_fn
+import os
 
 def build_graph(images, labels, params):
     """Build the computation graph, when we have a new model, simply modify this function.
@@ -66,6 +67,7 @@ def model_fn(features, labels, mode, params):
         estimator_spec.
     """
     thresholds=params['eval_thresholds']
+    model_dir=params['model_dir']
     
     # build graph, get raw_prob logits
     raw_probs, loss, optimizer = build_graph(features, labels, params)
@@ -101,9 +103,10 @@ def model_fn(features, labels, mode, params):
         eval_metric_ops[f1_tag]=(2*precisions[i]*recalls[i]/(precisions[i]+recalls[i]+1e-10),
                                  tf.group(precisions_op[i], recalls_op[i]))
         
+        f1=2*precisions[i]*recalls[i]/(precisions[i]+recalls[i]+1e-10)
         summary_p.append(tf.summary.scalar(p_tag, precisions_op[i], family='precisions'))
         summary_r.append(tf.summary.scalar(r_tag, recalls_op[i], family='recalls'))
-        summary_f1.append(tf.summary.scalar(f1_tag, eval_metric_ops[f1_tag][0], family='f1_scores'))
+        summary_f1.append(tf.summary.scalar(f1_tag, f1, family='f1_scores'))
     
     tf.summary.scalar('auc', auc[1])
     tf.summary.merge_all()
@@ -115,9 +118,15 @@ def model_fn(features, labels, mode, params):
             global_step=tf.train.get_global_step())
         return tf.estimator.EstimatorSpec(mode=mode, loss=loss,
                                           train_op=train_op)
+    
     # EVAL mode.
     if mode == tf.estimator.ModeKeys.EVAL:
+#         summary_hook=tf.train.SummarySaverHook(save_steps=100,
+#                                                output_dir=os.path.join(model_dir,'eval/'), 
+#                                                summary_op=sum_all)
+#         logging_hook=tf.train.LoggingTensorHook(every_n_iter=100,
+#                                                 at_end=True,
+#                                                 tensors=f1_value)
         return tf.estimator.EstimatorSpec(mode=mode, loss=loss,
+#                                           evaluation_hooks=[summary_hook, logging_hook],
                                           eval_metric_ops=eval_metric_ops)
-
-

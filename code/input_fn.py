@@ -134,14 +134,7 @@ def data_batch(image_paths, labels, shuffle_repeat, test_mode,
     iterator = data.make_one_shot_iterator()
     return iterator.get_next()
 
-  
-def parse_labels(json_path, img_paths):
-    """
-    parse the dataset to create a list of tuple containing absolute path and url of image
-    :param _dataset: dataset to parse
-    :param _max: maximum images to download (change to download all dataset)
-    :return: list of tuple containing absolute path and url of image
-    """
+def load_labels(json_path):
     labelIds = {}
     with open(json_path, 'r') as f:
         data = json.load(f)
@@ -149,6 +142,16 @@ def parse_labels(json_path, img_paths):
             imgId = label_data["imageId"]
             labelId = [int(x) for x in label_data["labelId"]]
             labelIds[imgId] = labelId
+    return labelIds
+    
+def parse_labels(json_path, img_paths):
+    """
+    parse the dataset to create a list of tuple containing absolute path and url of image
+    :param _dataset: dataset to parse
+    :param _max: maximum images to download (change to download all dataset)
+    :return: list of tuple containing absolute path and url of image
+    """
+    labelIds = load_labels(json_path)
     
     # get the file id from file path
     labels_sparse = [labelIds[x[x.rfind('/')+1:x.rfind('.')]] for x in img_paths]
@@ -178,4 +181,49 @@ def input_fn(input_folder, label_json_path, batch_size, repeat=True,
     else:
         batch_features = data_batch(img_paths, labels, repeat, True, augment, batch_size, num_threads)
 
+    return batch_features, batch_labels
+
+
+#########################################################
+### Input fn for loading tf records
+#########################################################
+IMAGE_SIZE = 299
+
+def tf_record_input_fn(tfrecords_filename, batch_size=32, shuffle=True, repeat=True, 
+                       num_threads=6):
+    '''
+    '''
+    def _parse_function(serialized):
+        features={
+        'image': tf.FixedLenFeature([], tf.string),
+        'labels': tf.VarLenFeature(tf.int64),
+        }
+        # Parse the serialized data so we get a dict with our data.
+        parsed_example = tf.parse_single_example(serialized=serialized,
+                                                 features=features)
+        # Get the image as raw bytes.
+        image = tf.decode_raw(parsed_example['image'], tf.uint8)
+        image = tf.reshape(image, (IMAGE_SIZE, IMAGE_SIZE, 3))
+
+        # Do data process here.#
+        image = _normalize_data(image)
+
+        label_sparse = tf.sparse_tensor_to_dense(parsed_example['labels'])
+        label_dense = tf.reshape(label_sparse, (-1, 1))
+        label = tf.scatter_nd(label_dense-1, tf.ones(tf.shape(label_dense)[0]), [228])
+        return image, label
+    
+    dataset = tf.data.TFRecordDataset(filenames=tfrecords_filename)
+    # Parse the serialized data in the TFRecords files.
+    # This returns TensorFlow tensors for the image and labels.
+    dataset = dataset.map(_parse_function, num_parallel_calls=num_threads)
+    if shuffle:
+        # Randomizes input using a window of 256 elements (read into memory)
+        dataset = dataset.shuffle(buffer_size=256)
+    if repeat:
+        dataset = dataset.repeat()  # Repeats dataset this # times
+    dataset = dataset.batch(batch_size)  # Batch size to use
+    iterator = dataset.make_one_shot_iterator()
+    batch_features, batch_labels = iterator.get_next()
+    
     return batch_features, batch_labels
