@@ -190,7 +190,7 @@ def input_fn(input_folder, label_json_path, batch_size, repeat=True,
 IMAGE_SIZE = 299
 
 def tf_record_input_fn(tfrecords_filename, batch_size=32, shuffle=True, repeat=True, 
-                       num_threads=6):
+                       num_threads=8):
     '''
     '''
     def _parse_function(serialized):
@@ -219,7 +219,7 @@ def tf_record_input_fn(tfrecords_filename, batch_size=32, shuffle=True, repeat=T
     dataset = dataset.map(_parse_function, num_parallel_calls=num_threads)
     if shuffle:
         # Randomizes input using a window of 256 elements (read into memory)
-        dataset = dataset.shuffle(buffer_size=256)
+        dataset = dataset.shuffle(buffer_size=512)
     if repeat:
         dataset = dataset.repeat()  # Repeats dataset this # times
     dataset = dataset.batch(batch_size)  # Batch size to use

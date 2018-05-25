@@ -6,7 +6,8 @@ import input_fn
 from tqdm import tqdm
 # from baseline_model import model_fn
 # from baseline_model_gru import model_fn
-from baseline_model_dense import model_fn
+# from baseline_model_dense import model_fn
+from baseline_model_dense2 import model_fn
 
 tf.app.flags.DEFINE_integer("augment", 0, "")
 tf.app.flags.DEFINE_integer("batch_size", 32, "")
@@ -29,7 +30,8 @@ tf.app.flags.DEFINE_integer("num_classes", 228, "")
 tf.app.flags.DEFINE_float("learning_rate", 3e-4, "")
 tf.app.flags.DEFINE_float("reg", 0.1, "")
 tf.app.flags.DEFINE_integer("num_train_steps", -1, "")
-tf.app.flags.DEFINE_integer("num_train_per_eval", 5000, "")
+tf.app.flags.DEFINE_integer("num_epoch", -1, "")
+tf.app.flags.DEFINE_integer("num_train_per_eval", 31705, "")
 tf.app.flags.DEFINE_string("eval_thresholds", "0.1;0.15;0.2;0.25;0.3;0.4;0.5;0.6;0.7;0.8;0.9", "the thresholds used in eval mode.")
 tf.app.flags.DEFINE_bool("module_trainable", False, "whether the pretrained model is trainable or not.")
 
@@ -97,6 +99,7 @@ if __name__ == '__main__':
     learning_rate = FLAGS.learning_rate
     num_train_steps = FLAGS.num_train_steps
     num_train_per_eval = FLAGS.num_train_per_eval
+    num_epoch = FLAGS.num_epoch
         
     train_input_fn = lambda: input_fn.input_fn(
         train_data_dir,
@@ -125,7 +128,8 @@ if __name__ == '__main__':
     #########################################
     train_tfr_input_fn = lambda: input_fn.tf_record_input_fn(
         FLAGS.train_tfrecord, 
-        batch_size=batch_size, 
+        batch_size=batch_size,
+        repeat=False,
         num_threads=num_threads)
     
     valid_tfr_input_fn = lambda: input_fn.tf_record_input_fn(
@@ -147,17 +151,18 @@ if __name__ == '__main__':
     
     if FLAGS.mode.lower() == "train":
         print("Training mode..")
-        cur_step=0
-        while num_train_steps==-1 or cur_step < num_train_steps: 
-            classifier.train(train_input_fn, steps=num_train_per_eval)
+        cur_epoch = 1
+        while num_epoch == -1 or cur_epoch < num_epoch:
+            print("Epoch %d."%(cur_epoch))
+            classifier.train(train_tfr_input_fn)
             eval_data=classifier.evaluate(valid_input_fn)
             print("Eval data: ", eval_data)
-            cur_step += num_train_per_eval
+            cur_epoch += 1
         
-        print("Train done: %d steps since last run."%(cur_step))
+        print("Train done: %d epochs since last run."%(cur_epoch))
         
     elif FLAGS.mode.lower() == "eval":
-        eval_data=classifier.evaluate(valid_input_fn)
+        eval_data=classifier.evaluate(valid_tfr_input_fn)
         print("Eval data: ", eval_data)
         
     elif FLAGS.mode.lower() == "test":

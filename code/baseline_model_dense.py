@@ -34,15 +34,14 @@ def build_graph(images, labels, is_training, params):
     fc1 = tf.layers.dropout(
         inputs=fc1,
         rate=0.1,
-        training=is_training,
-        activation_fn=tf.nn.relu)  # (batch_size, num_classes)
+        training=is_training)  # (batch_size, num_classes)
     
-    fc2 = tf.contrib.layers.fully_connected(
+    raw_logits = tf.contrib.layers.fully_connected(
         inputs=fc1,
         num_outputs=num_classes,
         activation_fn=None)  # (batch_size, num_classes)
     
-    raw_probs = tf.sigmoid(fc2)  # (batch_size, num_classes)
+    raw_probs = tf.sigmoid(raw_logits)  # (batch_size, num_classes)
     
     loss, optimizer = None, None
     if labels is not None:

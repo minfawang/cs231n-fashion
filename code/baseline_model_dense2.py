@@ -26,34 +26,27 @@ def build_graph(images, labels, is_training, params):
     features = module(images)  # (batch_size, D)
     
     hidden_size=1536
-    # Re-represent the input feature
+    
     fc1 = tf.contrib.layers.fully_connected(
         inputs=features,
         num_outputs=hidden_size,
-        activation_fn=tf.nn.relu)
-    fc1 = tf.expand_dims(fc1, axis=2)
+        activation_fn=tf.nn.relu)  # (batch_size, num_classes)
     
-    # Pass through bidirectional GRU layer
-    gru_cell_fw = tf.nn.rnn_cell.GRUCell(1, name='gru_fw')
-    gru_cell_bw = tf.nn.rnn_cell.GRUCell(1, name='gru_bw')
-    gru_fw, gru_bw = tf.nn.bidirectional_dynamic_rnn(cell_fw=gru_cell_fw,
-                                                     cell_bw=gru_cell_bw,
-                                                     inputs=fc1,
-                                                     dtype=tf.float32)
-    gru_out = tf.concat([gru_fw, gru_bw], axis=1)
+    fc1 = tf.layers.dropout(
+        inputs=fc1,
+        rate=0.15,
+        training=is_training)  # (batch_size, num_classes)
     
-    # Re-represent
     fc2 = tf.contrib.layers.fully_connected(
-        inputs=gru_out,
-        num_outputs=hidden_size*2,
-        activation_fn=tf.nn.relu)
-        
+        inputs=fc1,
+        num_outputs=hidden_size,
+        activation_fn=tf.nn.relu)  # (batch_size, num_classes)
+    
     fc2 = tf.layers.dropout(
         inputs=fc2,
-        rate=0.15,
-        training=is_training)
+        rate=0.1,
+        training=is_training)  # (batch_size, num_classes)
     
-    # Output
     raw_logits = tf.contrib.layers.fully_connected(
         inputs=fc2,
         num_outputs=num_classes,
