@@ -4,8 +4,9 @@ import numpy as np
 import os
 import input_fn
 from tqdm import tqdm
-from baseline_model import model_fn
+# from baseline_model import model_fn
 from baseline_model_gru import model_fn
+# from baseline_model_dense import model_fn
 
 tf.app.flags.DEFINE_integer("augment", 0, "")
 tf.app.flags.DEFINE_integer("batch_size", 32, "")
@@ -28,7 +29,7 @@ tf.app.flags.DEFINE_integer("num_classes", 228, "")
 tf.app.flags.DEFINE_float("learning_rate", 3e-4, "")
 tf.app.flags.DEFINE_float("reg", 0.1, "")
 tf.app.flags.DEFINE_integer("num_train_steps", -1, "")
-tf.app.flags.DEFINE_integer("num_train_per_eval", 10000, "")
+tf.app.flags.DEFINE_integer("num_train_per_eval", 5000, "")
 tf.app.flags.DEFINE_string("eval_thresholds", "0.1;0.15;0.2;0.25;0.3;0.4;0.5;0.6;0.7;0.8;0.9", "the thresholds used in eval mode.")
 tf.app.flags.DEFINE_bool("module_trainable", False, "whether the pretrained model is trainable or not.")
 
