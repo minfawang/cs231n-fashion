@@ -22,6 +22,19 @@ cd cs231n-fashion  # Changes your directory to the root of the repo.
 # command in the comment below:
 # pipenv --python /usr/local/bin/python3 install
 pipenv --three install  # Create a virtual env using Python3.
+
+# Enter virtual env.
+pipenv shell
+
+# Set up custom python kernel with correct binary and dependency.
+# https://stackoverflow.com/a/47296960
+python -m ipykernel install --user --name=cs231n-fashion
+```
+
+For running the cs231n pre-defined image on VM instance on Google Cloud, you need to also run this comamnd per [instructions from the course page](http://cs231n.github.io/gce-tutorial/):
+
+```bash
+/home/shared/setup.sh && source ~/.bashrc
 ```
 
 #### Download data
