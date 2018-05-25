@@ -5,8 +5,8 @@ import os
 import input_fn
 from tqdm import tqdm
 # from baseline_model import model_fn
-from baseline_model_gru import model_fn
-# from baseline_model_dense import model_fn
+# from baseline_model_gru import model_fn
+from baseline_model_dense import model_fn
 
 tf.app.flags.DEFINE_integer("augment", 0, "")
 tf.app.flags.DEFINE_integer("batch_size", 32, "")
