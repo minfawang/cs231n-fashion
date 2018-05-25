@@ -21,11 +21,12 @@ tf.app.flags.DEFINE_string("model_dir", '/home/shared/cs231n-fashion/model_dir/b
 tf.app.flags.DEFINE_integer("hidden_size", 100, "")
 tf.app.flags.DEFINE_integer("num_classes", 228, "")
 tf.app.flags.DEFINE_float("learning_rate", 3e-4, "")
+tf.app.flags.DEFINE_float("reg", 0.1, "")
 tf.app.flags.DEFINE_integer("num_train_steps", -1, "")
 tf.app.flags.DEFINE_integer("num_train_per_eval", 1000, "")
 tf.app.flags.DEFINE_integer("num_step_to_eval", 50, ".")
 tf.app.flags.DEFINE_integer("num_iter_to_eval_on_valid", 16, "")
-tf.app.flags.DEFINE_string("eval_thresholds", "0.1;0.15;0.2;0.25;0.3;0.5;0.7", "the thresholds used in eval mode.")
+tf.app.flags.DEFINE_string("eval_thresholds", "0.1;0.15;0.2;0.25;0.3;0.5;0.7;0.8;0.9", "the thresholds used in eval mode.")
 tf.app.flags.DEFINE_bool("module_trainable", False, "whether the pretrained model is trainable or not.")
 
 tf.app.flags.DEFINE_string("mode", "train", "train, eval, or test")
@@ -55,7 +56,8 @@ if __name__ == '__main__':
         'learning_rate': FLAGS.learning_rate,
         'num_classes': FLAGS.num_classes,
         'module_trainable': FLAGS.module_trainable,
-        'eval_thresholds': [float(i) for i in FLAGS.eval_thresholds.split(';')]
+        'eval_thresholds': [float(i) for i in FLAGS.eval_thresholds.split(';')],
+        'reg': FLAGS.reg
     }
     
     # Create the estimator.
@@ -94,7 +96,6 @@ if __name__ == '__main__':
         train_data_dir,
         train_label,
         batch_size=batch_size,
-        images_limit=100,
     )
 
     valid_input_fn = lambda: input_fn.input_fn(

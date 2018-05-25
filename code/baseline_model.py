@@ -14,10 +14,14 @@ def build_graph(images, labels, params):
     num_classes=params['num_classes']
     learning_rate=params['learning_rate']
     module_trainable=params['module_trainable']
+    reg=params['reg']
     
     # Input layer.
-    module = hub.Module("https://tfhub.dev/google/imagenet/inception_resnet_v2/feature_vector/1",
-                       trainable=module_trainable)
+    if module_trainable:
+        module = hub.Module("https://tfhub.dev/google/imagenet/inception_resnet_v2/feature_vector/1",
+                            trainable=True, tags={"train"})
+    else:
+        module = hub.Module("https://tfhub.dev/google/imagenet/inception_resnet_v2/feature_vector/1")
     features = module(images)  # (batch_size, D)
 
     #     # RNN layer.
@@ -33,11 +37,17 @@ def build_graph(images, labels, params):
     
     raw_probs = tf.sigmoid(raw_logits)  # (batch_size, num_classes)
     
-    loss = tf.losses.sigmoid_cross_entropy(
-        multi_class_labels=labels,
-        logits=raw_logits)
+    loss, optimizer = None, None
+    if labels is not None:
+        # in test mode, don't build loss graph
+        loss = tf.losses.sigmoid_cross_entropy(
+            multi_class_labels=labels,
+            logits=raw_logits)
     
-    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+        optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+        
+        if module_trainable:
+            loss += reg*tf.losses.get_regularization_loss()
     
     return raw_probs, loss, optimizer
 
