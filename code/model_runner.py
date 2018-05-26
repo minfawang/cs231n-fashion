@@ -6,8 +6,8 @@ import input_fn
 from tqdm import tqdm
 # from baseline_model import model_fn
 # from baseline_model_gru import model_fn
-# from baseline_model_dense import model_fn
-from baseline_model_dense2 import model_fn
+from baseline_model_dense import model_fn
+# from baseline_model_dense2 import model_fn
 
 tf.app.flags.DEFINE_integer("augment", 0, "")
 tf.app.flags.DEFINE_integer("batch_size", 32, "")
@@ -104,6 +104,7 @@ if __name__ == '__main__':
     train_input_fn = lambda: input_fn.input_fn(
         train_data_dir,
         train_label,
+        repeat=False,
         batch_size=batch_size,
         num_threads=num_threads,
     )
