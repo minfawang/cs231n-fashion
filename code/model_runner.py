@@ -2,6 +2,8 @@ import tensorflow as tf
 import tensorflow_hub as hub
 import numpy as np
 import os
+import pandas as pd
+import re
 import input_fn
 from tqdm import tqdm
 # from baseline_model import model_fn
@@ -19,6 +21,7 @@ tf.app.flags.DEFINE_string("valid_data_dir", '/home/fashion/data/validation_proc
 tf.app.flags.DEFINE_string("valid_label", '/home/fashion/data/validation.json', "")
 tf.app.flags.DEFINE_string("test_data_dir", '/home/fashion/data/test_processed', "")
 tf.app.flags.DEFINE_string("test_prediction", '/home/shared/cs231n-fashion/submission/test_prediction.csv', "")
+tf.app.flags.DEFINE_string("debug_dump_file", 'debug/debug.csv', "")
 tf.app.flags.DEFINE_string("model_dir", '/home/shared/cs231n-fashion/model_dir/baseline2/', "")
 
 tf.app.flags.DEFINE_string("train_tfrecord", '/home/shared/cs231n-fashion/data/train_processed.tfrecords', '')
@@ -36,8 +39,7 @@ tf.app.flags.DEFINE_string("eval_thresholds", "0.1;0.15;0.2;0.25;0.3;0.4;0.5;0.6
 tf.app.flags.DEFINE_bool("module_trainable", False, "whether the pretrained model is trainable or not.")
 
 tf.app.flags.DEFINE_string("mode", "train", "train, eval, or test")
-tf.app.flags.DEFINE_float("pred_threshold", "0.2", "the threshold for prediction")
-
+tf.app.flags.DEFINE_string("pred_threshold", "0.2", "the threshold for prediction")
 tf.app.flags.DEFINE_string('gpu_id', '0', 'the device to use for training.')
 
 
@@ -47,6 +49,7 @@ os.environ["CUDA_VISIBLE_DEVICES"] = FLAGS.gpu_id #this set the environment, may
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '1' # Logging.
 
 NUM_TEST=39706
+NUM_VALID=9897
 
 class LossCheckerHook(tf.train.SessionRunHook):
     def begin(self):
@@ -153,6 +156,7 @@ if __name__ == '__main__':
     if FLAGS.mode.lower() == "train":
         print("Training mode..")
         cur_epoch = 1
+
         while num_epoch == -1 or cur_epoch < num_epoch:
             print("Epoch %d."%(cur_epoch))
             classifier.train(train_tfr_input_fn)
@@ -173,11 +177,38 @@ if __name__ == '__main__':
         test_pred=classifier.predict(test_input_fn)
         img_id=1
         
+        # deal with unified threshold or per class thresholding
+        thresholds=[]
+        if re.match("^\d+?\.\d+?$", FLAGS.pred_threshold) is None:
+            print("Use per class thresholding.")
+            thresholds=pd.read_csv(FLAGS.pred_threshold)['thresholds'].values
+        else:
+            th=float(FLAGS.pred_threshold)
+            thresholds=[th for i in range(228)]
+        
         with tqdm(total=NUM_TEST) as progress_bar:
             for pred in test_pred:
-                labels=" ".join([str(i+1) for i in range(len(pred['probs'])) if pred['probs'][i] >= FLAGS.pred_threshold])
+                labels=" ".join([str(i+1) for i in range(len(pred['probs'])) if pred['probs'][i] >= thresholds[i]])
                 f.write("%d,%s\n"%(img_id, labels))
                 img_id += 1
                 progress_bar.update(1)
         print("Processed %d examples. Good Luck! :)"%(img_id))
+        f.close()
+        
+    elif FLAGS.mode.lower() == "debug":
+        print("Debugging model, output class prediction probablities to file.")
+        f=open(FLAGS.debug_dump_file, "w")
+        f.write("image_id,label_prob\n")
+        
+        # TODO: Please set the corresponding input_fn for your data set!!
+        valid_pred=classifier.predict(valid_tfr_input_fn)
+        img_id=1
+        
+        with tqdm(total=NUM_VALID) as progress_bar:
+            for pred in valid_pred:
+                labels=" ".join(["%.2f"%(p) for p in pred['probs']])
+                f.write("%d,%s\n"%(img_id, labels))
+                img_id += 1
+                progress_bar.update(1)
+        print("Processed %d examples. Happy Debugging! :)"%(img_id))
         f.close()
