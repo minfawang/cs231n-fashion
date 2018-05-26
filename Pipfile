@@ -9,9 +9,12 @@ pillow = "*"
 tqdm = "*"
 jupyter = "*"
 ipykernel = "*"
-tensorflow-gpu = "*"
+tensorflow = "*"
 tensorflow-hub = "*"
 scikit-image = "*"
+keras = "*"
+scikit-learn ="*"
+pandas ="*"
 
 [dev-packages]
 
