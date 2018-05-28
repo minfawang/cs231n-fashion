@@ -60,27 +60,46 @@ exit
 
 
 #### Useful commands
-```bash
-# this will download the test_prediction to local
-gcloud compute scp binbinx@cs231n-fashion-ssd:/home/shared/cs231n-fashion/submission/test_prediction.csv .
-```
 
-```bash
-# after logging in, run the following command to monitor memory usage
-sh /home/binbinx/memusg.sh
-```
+##### Training
+
 
 ```bash
 # run training.
 python code/model_runner.py --mode=train --module_trainable=true --model_dir=/home/shared/cs231n-fashion/model_dir/baseline2/ 
 ```
 
+##### Testing
+```bash
+# run test, generate submission file. If set pred_threshold to a filename, then use per class threshold.
+python code/model_runner.py --mode=test --model_dir=/home/shared/cs231n-fashion/model_dir/baseline2/ --pred_threshold=0.8
+```
+
+##### Eval
 ```bash
 # run eval.
 python code/model_runner.py --mode=eval --model_dir=/home/shared/cs231n-fashion/model_dir/baseline2/ --eval_thresholds=0.3;0.5;0.7;0.75;0.8;0.85;0.9
 ```
 
+##### Print debug dump
 ```bash
-# run test, generate submission file
-python code/model_runner.py --mode=test --model_dir=/home/shared/cs231n-fashion/model_dir/baseline2/ --pred_threshold=0.8
+# Print debug dump. Check the Threshold Selection part in binbin_playground for reference.
+# By default this prints the output of validation set. You can change this behavior in model_runner.py
+python code/model_runner.py --mode=debug --model_dir=/home/shared/cs231n-fashion/model_dir/baseline2/ --debug_dump_file=model_dir/baseline2/debug_dump.csv
 ```
+
+##### Threshold selection
+Check binbin_playground for reference. This could give extra 3% boost for single model.
+
+##### Other useful commands
+```bash
+# after logging in, run the following command to monitor memory usage
+sh /home/binbinx/memusg.sh
+```
+
+```bash
+# this will download the test_prediction to local
+gcloud compute scp binbinx@cs231n-fashion-ssd:/home/shared/cs231n-fashion/submission/test_prediction.csv .
+```
+
+
