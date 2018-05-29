@@ -1,7 +1,7 @@
 """
 BINBINX: This is a hack to allow ImageDataGenerator to create multi-class labels.
-"""
-"""Fairly basic set of tools for real-time data augmentation on image data.
+
+Fairly basic set of tools for real-time data augmentation on image data.
 
 Can easily be extended to include new transformations,
 new preprocessing methods, etc...
@@ -21,8 +21,10 @@ import warnings
 import multiprocessing.pool
 from functools import partial
 
-from .. import backend as K
-from ..utils.data_utils import Sequence
+# from .. import backend as K
+# from ..utils.data_utils import Sequence
+from keras.utils.data_utils import Sequence
+from keras import backend as K
 
 try:
     from PIL import ImageEnhance
@@ -1550,12 +1552,14 @@ def _list_valid_filenames_in_directory(directory, white_list_formats, split,
     classes = []
     filenames = []
     for root, fname in valid_files:
-        classes.append(class_indices[dirname])
+        ######
+#         classes.append(class_indices[dirname])
+#         print(root, fname)
+        ######
         absolute_path = os.path.join(root, fname)
         relative_path = os.path.join(
             dirname, os.path.relpath(absolute_path, directory))
         filenames.append(relative_path)
-
     return classes, filenames
 
 
@@ -1680,8 +1684,8 @@ class DirectoryIterator(Iterator):
                                    follow_links=follow_links,
                                    split=split)
         ######
-        if self.class_mode == 'multilabel':
-            classes = ['']
+        # Binbin: overwrite classes to empty
+        classes = ['']
         ######
         self.samples = sum(pool.map(function_partial,
                                     (os.path.join(directory, subdir)
@@ -1705,7 +1709,12 @@ class DirectoryIterator(Iterator):
             self.classes[i:i + len(classes)] = classes
             self.filenames += filenames
             i += len(classes)
-
+        
+        ########
+        if shuffle == False:
+            # make the input in order by id
+            self.filenames = ["%d.jpg"%(i+1)for i in range(len(self.filenames))]
+        ########
         pool.close()
         pool.join()
         super(DirectoryIterator, self).__init__(self.samples,
@@ -1757,9 +1766,12 @@ class DirectoryIterator(Iterator):
                 batch_y[i, label] = 1.
         elif self.class_mode == 'multilabel':
             ######
+            batch_y = np.zeros(
+                (len(batch_x), self.num_classes),
+                dtype=K.floatx())
             for i, j in enumerate(index_array):
-                id=j[:-4]
-                batch_y[i][self.multilabel_classes[id]] = 1
+                id=self.filenames[j][:-4]
+                batch_y[i][np.array(self.multilabel_classes[id])-1] = 1
             ######
         else:
             return batch_x
