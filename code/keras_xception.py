@@ -1,11 +1,15 @@
 import os
+import numpy as np
 from keras.applications.xception import Xception
 from keras.preprocessing import image
 from keras import metrics
 from keras.models import Model
 from keras.layers import Dense, GlobalAveragePooling2D
+from custom_metrics import FMetrics, FMetricsCallback
+from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard
 
-MODEL_FILE_NAME = 'top_model_weights.h5'
+MODEL_BEST_NAME = 'top_model_weights.h5'
+MODEL_CHECKPOINT_NAME = 'model_weights-{epoch:02d}-{val_acc:.2f}.hdf5'
 
 class KerasXception:
     
@@ -14,7 +18,8 @@ class KerasXception:
         
         # get useful params, keep as private field here.
         self.model_dir = self.params['model_dir']
-        self.model_file = os.path.join(self.model_dir, MODEL_FILE_NAME)
+        self.model_file = os.path.join(self.model_dir, MODEL_BEST_NAME)
+        self.model_checkpoint = os.path.join(self.model_dir, MODEL_CHECKPOINT_NAME)
         self.num_classes = self.params['num_classes']
         self.fine_tune = self.params['fine_tune']
         
@@ -43,6 +48,8 @@ class KerasXception:
 
         # this is the model we will train
         model = Model(inputs=base_model.input, outputs=predictions)
+        f_metrics = FMetrics()
+        f_scores = f_metrics.get_fscores()
         
         if not enable_fine_tune:
             # first: train only the top layers (which were randomly initialized)
@@ -52,20 +59,20 @@ class KerasXception:
 
             # compile the model (should be done *after* setting layers to non-trainable)
             model.compile(optimizer='rmsprop', 
-                               loss='binary_crossentropy',
-                               metrics=['accuracy'])
+                          loss='binary_crossentropy',
+                          metrics=['accuracy']+f_scores)
         else:
             print("@@@@@Fine tune enabled.@@@@@")
-            # TODO(how many layers to fine tune?)
-            for layer in model.layers[100:]:
+            print("Fine tune the last feature flow and the entire exit flow")
+            for layer in model.layers[116:]:
                 layer.trainable = True
         
             # compile the model with a SGD/momentum optimizer
             # and a very slow learning rate.
             model.compile(optimizer='nadam',
-                               learning_rate=1e-4,
-                               loss='binary_crossentropy',
-                               metrics=['accuracy'])
+                          learning_rate=2e-4,
+                          loss='binary_crossentropy',
+                          metrics=['accuracy']+f_scores)
         
         print (model.summary())
         return model
@@ -77,8 +84,12 @@ class KerasXception:
         """
         """
         # Define callbacks list. This should be the same for all models.
+        fmetric_callback = FMetricsCallback()
         callbacks_list = [
-            ModelCheckpoint(top_weights_path, monitor='val_acc', verbose=1, save_best_only=True),
+            # Save each model that improves validation accuracy
+            ModelCheckpoint(self.model_checkpoint, monitor='val_acc', verbose=1, save_best_only=True),
+            # Save model with best fscore5
+            ModelCheckpoint(self.model_file, monitor='val_fscore5', verbose=1, mode='max', save_best_only=True),
             EarlyStopping(monitor='val_acc', patience=5, verbose=1),
             TensorBoard(log_dir=self.model_dir, 
                         histogram_freq=0, batch_size=32, write_graph=True, write_grads=False, write_images=True, 
@@ -91,8 +102,8 @@ class KerasXception:
                                  steps_per_epoch=steps_per_epoch,
                                  shuffle=shuffle,
                                  max_queue_size=max_queue_size,
-                                 worker=worker,
-                                 validation_data=validation_generator,
+                                 workers=workers,
+                                 validation_data=validation_data,
                                  validation_steps=validation_steps,
                                  callbacks=callbacks_list)
     

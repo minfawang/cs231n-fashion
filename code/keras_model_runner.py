@@ -5,7 +5,6 @@ import pandas as pd
 import re
 from tqdm import tqdm
 from utils.keras_image import ImageDataGenerator
-from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard
 from estimator.input_fn import load_labels
 from keras_xception import KerasXception
 
@@ -25,7 +24,7 @@ tf.app.flags.DEFINE_string("model_dir", '/home/shared/cs231n-fashion/model_dir/k
 tf.app.flags.DEFINE_integer("num_classes", 228, "")
 tf.app.flags.DEFINE_float("learning_rate", 3e-4, "")
 tf.app.flags.DEFINE_integer("epochs", 7, "")
-tf.app.flags.DEFINE_integer("step_per_epochs", 5000, "")
+tf.app.flags.DEFINE_integer("steps_per_epoch", 5000, "")
 tf.app.flags.DEFINE_string("eval_thresholds", "0.1;0.15;0.2;0.25;0.3;0.4;0.5;0.6;0.7;0.8;0.9", "the thresholds used in eval mode.")
 
 tf.app.flags.DEFINE_bool("fine_tune", False, "Whether to fine tune the model or not.")
@@ -60,7 +59,7 @@ if __name__ == '__main__':
     num_classes = FLAGS.num_classes
     learning_rate = FLAGS.learning_rate
     epochs = FLAGS.epochs
-    step_per_epochs = FLAGS.step_per_epochs
+    steps_per_epoch = FLAGS.steps_per_epoch
         
     params = {
         'model_dir': FLAGS.model_dir,
@@ -130,9 +129,9 @@ if __name__ == '__main__':
         print("Training mode..")
         model.train(get_train_generator(),
                     max_queue_size=256,
-                    epochs=200,
+                    epochs=epochs,
                     workers=12,
-                    steps_per_epoch=5000,
+                    steps_per_epoch=steps_per_epoch,
                     validation_data=get_validation_generator())
         
     elif FLAGS.mode.lower() == "eval":
