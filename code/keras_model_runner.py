@@ -1,14 +1,12 @@
 import tensorflow as tf
-import tensorflow_hub as hub
 import numpy as np
 import os
 import pandas as pd
 import re
-import input_fn
 from tqdm import tqdm
 from utils.keras_image import ImageDataGenerator
 from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard
-from input_fn import load_labels
+from estimator.input_fn import load_labels
 from keras_xception import KerasXception
 
 tf.app.flags.DEFINE_integer("augment", 0, "")
