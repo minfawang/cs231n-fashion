@@ -15,16 +15,16 @@ class KerasXception:
         # get useful params, keep as private field here.
         self.model_dir = self.params['model_dir']
         self.model_file = os.path.join(self.model_dir, MODEL_FILE_NAME)
-        self.num_class = self.params['num_class']
+        self.num_classes = self.params['num_classes']
         self.fine_tune = self.params['fine_tune']
         
-        self.model = build_graph(self.fine_tune)
+        self.model = self.__build_graph(self.fine_tune)
         
         if not os.path.exists(self.model_dir):
             os.makedirs(self.model_dir)
-        else if os.path.exists(self.model_file):
+        elif os.path.exists(self.model_file):
             # load the model weights
-            print ("Load model weights from %d"%(self.model_file))
+            print ("Load model weights from %s"%(self.model_file))
             self.model.load_weights(self.model_file)
             
         
@@ -39,7 +39,7 @@ class KerasXception:
         # let's add a fully-connected layer
         x = Dense(2048, activation='relu')(x)
         # 228 classes 
-        predictions = Dense(self.num_class, activation='sigmoid')(x)
+        predictions = Dense(self.num_classes, activation='sigmoid')(x)
 
         # this is the model we will train
         model = Model(inputs=base_model.input, outputs=predictions)
@@ -52,25 +52,27 @@ class KerasXception:
 
             # compile the model (should be done *after* setting layers to non-trainable)
             model.compile(optimizer='rmsprop', 
-                          loss='binary_crossentropy',
-                          metrics=['accuracy'])
+                               loss='binary_crossentropy',
+                               metrics=['accuracy'])
         else:
+            print("@@@@@Fine tune enabled.@@@@@")
             # TODO(how many layers to fine tune?)
-            for layer in self.model.layers[100:]:
-            layer.trainable = True
+            for layer in model.layers[100:]:
+                layer.trainable = True
         
-        # compile the model with a SGD/momentum optimizer
-        # and a very slow learning rate.
-        model.compile(optimizer='nadam',
-                      learning_rate=1e-4,
-                      loss='binary_crossentropy',
-                      metrics=['accuracy'])
+            # compile the model with a SGD/momentum optimizer
+            # and a very slow learning rate.
+            model.compile(optimizer='nadam',
+                               learning_rate=1e-4,
+                               loss='binary_crossentropy',
+                               metrics=['accuracy'])
         
         print (model.summary())
+        return model
     
 
     ###################################################
-    def train(train_generator, validation_data=None, validation_steps=None,
+    def train(self, train_generator, validation_data=None, validation_steps=None,
               epochs=200, steps_per_epoch=5000, shuffle=True, max_queue_size=512, workers=12):
         """
         """
@@ -83,23 +85,23 @@ class KerasXception:
                         embeddings_freq=0, embeddings_layer_names=None, embeddings_metadata=None)
         ]
 
-        model.fit_generator(train_generator,
-                            use_multiprocessing=True,
-                            epochs=epochs,
-                            steps_per_epoch=steps_per_epoch,
-                            shuffle=shuffle,
-                            max_queue_size=max_queue_size,
-                            worker=worker,
-                            validation_data=validation_generator,
-                            validation_steps=validation_steps,
-                            callbacks=callbacks_list)
+        self.model.fit_generator(train_generator,
+                                 use_multiprocessing=True,
+                                 epochs=epochs,
+                                 steps_per_epoch=steps_per_epoch,
+                                 shuffle=shuffle,
+                                 max_queue_size=max_queue_size,
+                                 worker=worker,
+                                 validation_data=validation_generator,
+                                 validation_steps=validation_steps,
+                                 callbacks=callbacks_list)
     
-    def eval(eval_generator, steps=None, max_queue_size=512, workers=12, use_multiprocessing=True):
-        model.evaluate_generator(eval_generator, steps=steps, 
-                                 max_queue_size=max_queue_size, workers=workers, 
-                                 use_multiprocessing=use_multiprocessing, verbose=1)
+    def eval(self, eval_generator, steps=None, max_queue_size=512, workers=12, use_multiprocessing=True):
+        self.model.evaluate_generator(eval_generator, steps=steps, 
+                                      max_queue_size=max_queue_size, workers=workers, 
+                                      use_multiprocessing=use_multiprocessing, verbose=1)
     
-    def predict(test_generator, steps=None, max_queue_size=512):
+    def predict(self, test_generator, steps=None, max_queue_size=512):
         # Set multiprocessing to be false and worker to 1 to keep output order managed.
-        return model.predict_generator(test_generator, steps=steps, workers=1,
-                                       max_queue_size=max_queue_size, use_multiprocessing=False, verbose=1)
+        return self.model.predict_generator(test_generator, steps=steps, workers=1,
+                                            max_queue_size=max_queue_size, use_multiprocessing=False, verbose=1)
