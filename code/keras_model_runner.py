@@ -6,7 +6,8 @@ import re
 from tqdm import tqdm
 from utils.keras_image import ImageDataGenerator
 from estimator.input_fn import load_labels
-from xception import KerasXception
+# from xception import KerasXception
+from densenet169 import KerasDenseNet
 
 tf.app.flags.DEFINE_integer("augment", 0, "")
 tf.app.flags.DEFINE_integer("batch_size", 64, "")
@@ -67,12 +68,13 @@ if __name__ == '__main__':
         'model_dir': FLAGS.model_dir,
         'fine_tune': FLAGS.fine_tune,
         'num_classes': FLAGS.num_classes,
+        'image_size': IMG_SIZE,
         'reg': FLAGS.reg,
     }
     
     
     # Get model
-    model = KerasXception(params)
+    model = KerasDenseNet(params)
     
     ##########################
     ##Prepare data generator##
