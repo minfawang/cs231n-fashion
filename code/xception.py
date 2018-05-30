@@ -8,6 +8,7 @@ from keras.layers import Dense, GlobalAveragePooling2D
 from utils.custom_metrics import FMetrics, FMetricsCallback
 from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard
 from keras.optimizers import Nadam
+from keras import regularizers
 
 MODEL_BEST_NAME = 'top_model_weights.h5'
 MODEL_CHECKPOINT_NAME = 'model_weights-{epoch:02d}-{val_acc:.2f}.hdf5'
@@ -21,6 +22,7 @@ class KerasXception:
         self.model_dir = self.params['model_dir']
         self.num_classes = self.params['num_classes']
         self.fine_tune = self.params['fine_tune']
+        self.reg = self.params['reg']
 
         self.model_file = os.path.join(self.model_dir, MODEL_BEST_NAME)
         self.model_checkpoint = os.path.join(self.model_dir, MODEL_CHECKPOINT_NAME)
@@ -71,6 +73,7 @@ class KerasXception:
                 
             for layer in model.layers[116:]:
                 layer.trainable = True
+                layer.kernel_regularizer = regularizers.l2(self.reg)
         
             # compile the model with a SGD/momentum optimizer
             # and a very slow learning rate.
@@ -85,7 +88,7 @@ class KerasXception:
 
     ###################################################
     def train(self, train_generator, validation_data=None, validation_steps=None,
-              epochs=200, steps_per_epoch=5000, shuffle=True, max_queue_size=512, workers=12):
+              epochs=200, steps_per_epoch=5000, shuffle=True, max_queue_size=16, workers=12, initial_epoch=0):
         """
         """
         # Define callbacks list. This should be the same for all models.
@@ -110,14 +113,15 @@ class KerasXception:
                                  workers=workers,
                                  validation_data=validation_data,
                                  validation_steps=validation_steps,
-                                 callbacks=callbacks_list)
+                                 callbacks=callbacks_list,
+                                 initial_epoch=initial_epoch)
     
-    def eval(self, eval_generator, steps=None, max_queue_size=256, workers=12, use_multiprocessing=True):
+    def eval(self, eval_generator, steps=None, max_queue_size=16, workers=12, use_multiprocessing=True):
         self.model.evaluate_generator(eval_generator, steps=steps, 
                                       max_queue_size=max_queue_size, workers=workers, 
                                       use_multiprocessing=use_multiprocessing, verbose=1)
     
-    def predict(self, test_generator, steps=None, max_queue_size=512):
+    def predict(self, test_generator, steps=None, max_queue_size=16):
         # Set multiprocessing to be false and worker to 1 to keep output order managed.
         return self.model.predict_generator(test_generator, steps=steps, workers=1,
                                             max_queue_size=max_queue_size, use_multiprocessing=False, verbose=1)
