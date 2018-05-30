@@ -4,11 +4,12 @@ from keras.applications.xception import Xception
 from keras.preprocessing import image
 from keras import metrics
 from keras.models import Model
-from keras.layers import Dense, GlobalAveragePooling2D
+from keras.layers import Dense, GlobalAveragePooling2D, Conv2D, Reshape, Dropout, MaxPooling2D
 from utils.custom_metrics import FMetrics, FMetricsCallback
 from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard
-from keras.optimizers import Nadam
+from keras.optimizers import Nadam, Adam
 from keras import regularizers
+from keras import backend as K
 
 MODEL_BEST_NAME = 'top_model_weights.h5'
 MODEL_CHECKPOINT_NAME = 'model_weights-{epoch:02d}-{val_acc:.2f}.hdf5'
@@ -39,14 +40,23 @@ class KerasXception:
         
     def __build_graph(self, enable_fine_tune):
         # create the base pre-trained model
-        base_model = Xception(weights='imagenet', include_top=False)
+        base_model = Xception(
+            weights='imagenet',
+            include_top=False,
+            input_shape=(299, 299, 3))
 
         # add a global spatial max pooling layer
-        x = base_model.output #(?,3,3,2048)
-        x = GlobalAveragePooling2D()(x) #(?, 2048)
+        x = base_model.output #(?, 10, 10, 2048)
+        assert K.int_shape(x) == (None, 10, 10, 2048), 'K.int_shape(x): {}'.format(K.int_shape(x))
+        
+        x = Conv2D(filters=256, kernel_size=(1, 1), strides=(1, 1), padding='valid')(x)  # (?, 10, 10, 256)
+        x = MaxPooling2D(pool_size=(2, 2), strides=(2, 2))(x)
+        assert K.int_shape(x) == (None, 5, 5, 256), 'K.int_shape(x): {}'.format(K.int_shape(x))
+        x = Reshape((5 * 5 * 256,))(x)
 
         # let's add a fully-connected layer
-        x = Dense(2048, activation='relu')(x)
+        x = Dense(1024, activation='relu')(x)
+        x = Dropout(rate=0.2)(x)
         # 228 classes 
         predictions = Dense(self.num_classes, activation='sigmoid')(x)
 
@@ -68,21 +78,22 @@ class KerasXception:
         else:
             print("@@@@@Fine tune enabled.@@@@@")
             print("Fine tune the last feature flow and the entire exit flow")
-            for layer in model.layers[:36]: # change from 116 to 36
+            for layer in model.layers[:116]:
                 layer.trainable = False
                 
-            for layer in model.layers[36:]:
+            for layer in model.layers[116:]:
                 layer.trainable = True
                 layer.kernel_regularizer = regularizers.l2(self.reg)
         
             # compile the model with a SGD/momentum optimizer
             # and a very slow learning rate.
-            optimizer = Nadam(lr=2e-4)
+#             optimizer = Nadam(lr=2e-4)
+            optimizer = Adam(lr=1e-3)
             model.compile(optimizer=optimizer,
                           loss='binary_crossentropy',
                           metrics=['accuracy']+f_scores)
         
-        print (model.summary())
+        print(model.summary())
         return model
     
 
@@ -98,7 +109,7 @@ class KerasXception:
             ModelCheckpoint(self.model_checkpoint, monitor='val_acc', verbose=1, save_best_only=True),
             # Save model with best fscore5
             ModelCheckpoint(self.model_file, monitor='val_fscore5', verbose=1, mode='max', save_best_only=True),
-            # EarlyStopping(monitor='val_acc', patience=5, verbose=1),
+            EarlyStopping(monitor='val_acc', patience=5, verbose=1),
             TensorBoard(log_dir=self.model_dir, 
                         histogram_freq=0, batch_size=32, write_graph=True, write_grads=False, write_images=True, 
                         embeddings_freq=0, embeddings_layer_names=None, embeddings_metadata=None)
