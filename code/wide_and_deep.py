@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from keras.applications.xception import Xception
+from keras.applications.xception import Xception as DeepModel
 from keras.preprocessing import image
 from keras import metrics
 from keras.models import Model
@@ -13,7 +13,24 @@ from keras import regularizers
 MODEL_BEST_NAME = 'top_model_weights.h5'
 MODEL_CHECKPOINT_NAME = 'model_weights-{epoch:02d}-{val_acc:.2f}.hdf5'
 
-class KerasXception:
+
+                     binbinx   21502 F...m tensorboard
+                     binbinx   21656 F...m python
+                     binbinx   24823 F...m python
+                     binbinx   24824 F...m python
+                     binbinx   24825 F...m python
+                     binbinx   24826 F...m python
+                     binbinx   24827 F...m python
+                     binbinx   24828 F...m python
+                     binbinx   24829 F...m python
+                     binbinx   24830 F...m python
+                     binbinx   24831 F...m python
+                     binbinx   24832 F...m python
+                     binbinx   24833 F...m python
+
+                    
+                    
+class WideDeep:
     
     def __init__(self, params):
         self.params=params
@@ -24,6 +41,9 @@ class KerasXception:
         self.fine_tune = self.params['fine_tune']
         self.reg = self.params['reg']
 
+        self.wide_model_dir = self.params['wide_model_dir']
+        self.deep_model_dir = self.params['deep_model_dir']
+        
         self.model_file = os.path.join(self.model_dir, MODEL_BEST_NAME)
         self.model_checkpoint = os.path.join(self.model_dir, MODEL_CHECKPOINT_NAME)
         
@@ -35,19 +55,25 @@ class KerasXception:
             # load the model weights
             print ("Load model weights from %s"%(self.model_file))
             self.model.load_weights(self.model_file)
-            
         
-    def __build_graph(self, enable_fine_tune):
-        # create the base pre-trained model
-        base_model = Xception(weights='imagenet', include_top=False)
+        return self.model
+    
+    
+    def __build_model(self, enable_fine_tune):
+        self.wide_model = self.__build_wide_model(enable_fine_tune)
+        self.deep_model = self.__build_wode_model(enable_fine_tune)
+        
+        # concatenate wide and deep feature vector
+        self.model = tf.stack
+            
+            
+    def __build_deep_graph(self, enable_fine_tune):
+        # load pre-trained deep model
+        deep_model = DeepModel(weights='imagenet', include_top=False)
 
         # add a global spatial max pooling layer
-        x = base_model.output #(?,3,3,2048)
-        x = GlobalAveragePooling2D()(x) #(?, 2048)
+        x = deep_model.output #(?,3,3,2048)
 
-        # let's add a fully-connected layer
-        x = Dense(2048, activation='relu')(x)
-        # 228 classes 
         predictions = Dense(self.num_classes, activation='sigmoid')(x)
 
         # this is the model we will train
@@ -85,6 +111,9 @@ class KerasXception:
         print (model.summary())
         return model
     
+    def __build_wide_graph(self, enable_fine_tune):
+        pass
+        
 
     ###################################################
     def train(self, train_generator, validation_data=None, validation_steps=None,

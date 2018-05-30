@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from keras.applications.xception import Xception
+from keras.applications.densenet import DenseNet169
 from keras.preprocessing import image
 from keras import metrics
 from keras.models import Model
@@ -13,7 +13,7 @@ from keras import regularizers
 MODEL_BEST_NAME = 'top_model_weights.h5'
 MODEL_CHECKPOINT_NAME = 'model_weights-{epoch:02d}-{val_acc:.2f}.hdf5'
 
-class KerasXception:
+class KerasDenseNet:
     
     def __init__(self, params):
         self.params=params
@@ -22,6 +22,7 @@ class KerasXception:
         self.model_dir = self.params['model_dir']
         self.num_classes = self.params['num_classes']
         self.fine_tune = self.params['fine_tune']
+        self.image_size = self.params['image_size']
         self.reg = self.params['reg']
 
         self.model_file = os.path.join(self.model_dir, MODEL_BEST_NAME)
@@ -39,14 +40,14 @@ class KerasXception:
         
     def __build_graph(self, enable_fine_tune):
         # create the base pre-trained model
-        base_model = Xception(weights='imagenet', include_top=False)
+        base_model = DenseNet169(weights='imagenet', 
+                                 input_shape=(self.image_size, self.image_size, 3), 
+                                 include_top=False)
 
         # add a global spatial max pooling layer
         x = base_model.output #(?,3,3,2048)
         x = GlobalAveragePooling2D()(x) #(?, 2048)
 
-        # let's add a fully-connected layer
-        x = Dense(2048, activation='relu')(x)
         # 228 classes 
         predictions = Dense(self.num_classes, activation='sigmoid')(x)
 
