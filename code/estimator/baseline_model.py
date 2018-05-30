@@ -1,3 +1,7 @@
+"""
+python code/estimator/model_runner.py --mode=train --module_trainable=0 --model_dir=/home/minfa/model_dir/baseline/
+"""
+
 # define the model_fn for baseline model
 import tensorflow as tf
 import tensorflow_hub as hub
