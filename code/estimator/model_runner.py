@@ -6,6 +6,9 @@ import pandas as pd
 import re
 import input_fn
 from tqdm import tqdm
+import logging
+import ensemble
+import time
 # from baseline_model import model_fn
 # from baseline_model_gru import model_fn
 from baseline_model_dense import model_fn
@@ -23,6 +26,7 @@ tf.app.flags.DEFINE_string("test_data_dir", '/home/fashion/data/test_processed',
 tf.app.flags.DEFINE_string("test_prediction", '/home/shared/cs231n-fashion/submission/test_prediction.csv', "")
 tf.app.flags.DEFINE_string("debug_dump_file", 'debug/debug.csv', "")
 tf.app.flags.DEFINE_string("model_dir", '/home/shared/cs231n-fashion/model_dir/baseline2/', "")
+tf.app.flags.DEFINE_string("ensemble_model_dir", '/home/shared/cs231n-fashion/model_dir/', "")
 
 tf.app.flags.DEFINE_string("train_tfrecord", '/home/shared/cs231n-fashion/data/train_processed.tfrecords', '')
 tf.app.flags.DEFINE_string("valid_tfrecord", '/home/shared/cs231n-fashion/data/validation_processed.tfrecords', '')
@@ -41,7 +45,7 @@ tf.app.flags.DEFINE_bool("module_trainable", False, "whether the pretrained mode
 tf.app.flags.DEFINE_string("mode", "train", "train, eval, or test")
 tf.app.flags.DEFINE_string("pred_threshold", "0.2", "the threshold for prediction")
 tf.app.flags.DEFINE_string('gpu_id', '0', 'the device to use for training.')
-
+tf.app.flags.DEFINE_string('log_file', '', 'If not empty, will put tf log to the specific file path.')
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -56,8 +60,26 @@ class LossCheckerHook(tf.train.SessionRunHook):
         self.loss_collection=tf.get_collection(tf.GraphKeys.LOSSES)
 
 
-if __name__ == '__main__':
+# https://stackoverflow.com/a/44296581/4115411
+# WARNING: this function still dumps to stdout.
+# Another wordaround is to pipe the command with an output file address.
+def set_log_to_file(log_file):
+    print('Streaming tf log to file: {}'.format(log_file))
+    time.sleep(3)
+    log = logging.getLogger('tensorflow')
+    assert len(log.handlers) == 1, 'tf logging handler should contain only stdout.'
+    log.removeHandler(log.handlers[0])
 
+    # create formatter and add it to the handlers
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    
+    fh = logging.FileHandler(log_file)
+    fh.setLevel(logging.DEBUG)
+    fh.setFormatter(formatter)
+    log.addHandler(fh)
+
+
+if __name__ == '__main__':
     run_config=tf.estimator.RunConfig(
         session_config=tf.ConfigProto(log_device_placement=True),
         save_checkpoints_secs=30*60,
@@ -171,29 +193,19 @@ if __name__ == '__main__':
         print("Eval data: ", eval_data)
         
     elif FLAGS.mode.lower() == "test":
-        print("Saving test data to: ", FLAGS.test_prediction)
-        f=open(FLAGS.test_prediction, "w")
-        f.write("image_id,label_id\n")
-        test_pred=classifier.predict(test_input_fn)
-        img_id=1
-        
-        # deal with unified threshold or per class thresholding
-        thresholds=[]
-        if re.match("^\d+?\.\d+?$", FLAGS.pred_threshold) is None:
-            print("Use per class thresholding.")
-            thresholds=pd.read_csv(FLAGS.pred_threshold)['thresholds'].values
+        # KV is 'label': ('model_file', 'exp_name', weight)
+        if FLAGS.ensemble_model_dir:
+            ensemble_label_to_model_meta = {
+                'baseline': ['baseline_model', 'baseline', 0.2],
+                'baseline_dense2': ['baseline_model_dense2', 'baseline_dense2', 0.5],
+            }
+            probs = ensemble.predict(ensemble_label_to_model_meta, run_config, params, test_input_fn)
         else:
-            th=float(FLAGS.pred_threshold)
-            thresholds=[th for i in range(228)]
-        
-        with tqdm(total=NUM_TEST) as progress_bar:
-            for pred in test_pred:
-                labels=" ".join([str(i+1) for i in range(len(pred['probs'])) if pred['probs'][i] >= thresholds[i]])
-                f.write("%d,%s\n"%(img_id, labels))
-                img_id += 1
-                progress_bar.update(1)
-        print("Processed %d examples. Good Luck! :)"%(img_id))
-        f.close()
+            probs = np.array([
+                pred['probs']
+                for pred in classifier.predict(test_input_fn)
+            ])
+        ensemble.write_predictions(probs, FLAGS.test_prediction)
         
     elif FLAGS.mode.lower() == "debug":
         print("Debugging model, output class prediction probablities to file.")
