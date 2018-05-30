@@ -5,8 +5,9 @@ from keras.preprocessing import image
 from keras import metrics
 from keras.models import Model
 from keras.layers import Dense, GlobalAveragePooling2D
-from custom_metrics import FMetrics, FMetricsCallback
+from utils.custom_metrics import FMetrics, FMetricsCallback
 from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard
+from keras.optimizers import Nadam
 
 MODEL_BEST_NAME = 'top_model_weights.h5'
 MODEL_CHECKPOINT_NAME = 'model_weights-{epoch:02d}-{val_acc:.2f}.hdf5'
@@ -18,10 +19,11 @@ class KerasXception:
         
         # get useful params, keep as private field here.
         self.model_dir = self.params['model_dir']
-        self.model_file = os.path.join(self.model_dir, MODEL_BEST_NAME)
-        self.model_checkpoint = os.path.join(self.model_dir, MODEL_CHECKPOINT_NAME)
         self.num_classes = self.params['num_classes']
         self.fine_tune = self.params['fine_tune']
+
+        self.model_file = os.path.join(self.model_dir, MODEL_BEST_NAME)
+        self.model_checkpoint = os.path.join(self.model_dir, MODEL_CHECKPOINT_NAME)
         
         self.model = self.__build_graph(self.fine_tune)
         
@@ -64,13 +66,16 @@ class KerasXception:
         else:
             print("@@@@@Fine tune enabled.@@@@@")
             print("Fine tune the last feature flow and the entire exit flow")
+            for layer in model.layers[:116]:
+                layer.trainable = False
+                
             for layer in model.layers[116:]:
                 layer.trainable = True
         
             # compile the model with a SGD/momentum optimizer
             # and a very slow learning rate.
-            model.compile(optimizer='nadam',
-                          learning_rate=2e-4,
+            optimizer = Nadam(lr=2e-4)
+            model.compile(optimizer=optimizer,
                           loss='binary_crossentropy',
                           metrics=['accuracy']+f_scores)
         
@@ -107,7 +112,7 @@ class KerasXception:
                                  validation_steps=validation_steps,
                                  callbacks=callbacks_list)
     
-    def eval(self, eval_generator, steps=None, max_queue_size=512, workers=12, use_multiprocessing=True):
+    def eval(self, eval_generator, steps=None, max_queue_size=256, workers=12, use_multiprocessing=True):
         self.model.evaluate_generator(eval_generator, steps=steps, 
                                       max_queue_size=max_queue_size, workers=workers, 
                                       use_multiprocessing=use_multiprocessing, verbose=1)

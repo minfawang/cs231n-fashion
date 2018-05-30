@@ -9,7 +9,7 @@ from estimator.input_fn import load_labels
 from keras_xception import KerasXception
 
 tf.app.flags.DEFINE_integer("augment", 0, "")
-tf.app.flags.DEFINE_integer("batch_size", 64, "")
+tf.app.flags.DEFINE_integer("batch_size", 128, "")
 tf.app.flags.DEFINE_integer("num_threads", 12, "")
 
 tf.app.flags.DEFINE_string("train_data_dir", '/home/fashion/data/train_processed', "")
@@ -23,9 +23,8 @@ tf.app.flags.DEFINE_string("model_dir", '/home/shared/cs231n-fashion/model_dir/k
 
 tf.app.flags.DEFINE_integer("num_classes", 228, "")
 tf.app.flags.DEFINE_float("learning_rate", 3e-4, "")
-tf.app.flags.DEFINE_integer("epochs", 7, "")
-tf.app.flags.DEFINE_integer("steps_per_epoch", 5000, "")
-tf.app.flags.DEFINE_string("eval_thresholds", "0.1;0.15;0.2;0.25;0.3;0.4;0.5;0.6;0.7;0.8;0.9", "the thresholds used in eval mode.")
+tf.app.flags.DEFINE_integer("epochs", 36, "")
+tf.app.flags.DEFINE_integer("steps_per_epoch", 2000, "")
 
 tf.app.flags.DEFINE_bool("fine_tune", False, "Whether to fine tune the model or not.")
 tf.app.flags.DEFINE_string("mode", "train", "train, eval, or test")
