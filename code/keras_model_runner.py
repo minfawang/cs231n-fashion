@@ -6,7 +6,7 @@ import re
 from tqdm import tqdm
 from utils.keras_image import ImageDataGenerator
 from estimator.input_fn import load_labels
-from xception_v2 import KerasXception
+from xception import KerasXception
 # from densenet169 import KerasDenseNet
 
 tf.app.flags.DEFINE_integer("augment", 0, "")
