@@ -6,11 +6,11 @@ import re
 from tqdm import tqdm
 from utils.keras_image import ImageDataGenerator
 from estimator.input_fn import load_labels
-from keras_xception import KerasXception
+from xception import KerasXception
 
 tf.app.flags.DEFINE_integer("augment", 0, "")
-tf.app.flags.DEFINE_integer("batch_size", 128, "")
-tf.app.flags.DEFINE_integer("num_threads", 12, "")
+tf.app.flags.DEFINE_integer("batch_size", 64, "")
+tf.app.flags.DEFINE_integer("num_threads", 8, "")
 
 tf.app.flags.DEFINE_string("train_data_dir", '/home/fashion/data/train_processed', "")
 tf.app.flags.DEFINE_string("train_label", '/home/fashion/data/train.json', "")
@@ -24,7 +24,9 @@ tf.app.flags.DEFINE_string("model_dir", '/home/shared/cs231n-fashion/model_dir/k
 tf.app.flags.DEFINE_integer("num_classes", 228, "")
 tf.app.flags.DEFINE_float("learning_rate", 3e-4, "")
 tf.app.flags.DEFINE_integer("epochs", 36, "")
-tf.app.flags.DEFINE_integer("steps_per_epoch", 2000, "")
+tf.app.flags.DEFINE_integer("steps_per_epoch", 1000, "")
+tf.app.flags.DEFINE_integer("initial_epoch", 0, "")
+tf.app.flags.DEFINE_float("reg", 1e-5, "")
 
 tf.app.flags.DEFINE_bool("fine_tune", False, "Whether to fine tune the model or not.")
 tf.app.flags.DEFINE_string("mode", "train", "train, eval, or test")
@@ -59,11 +61,13 @@ if __name__ == '__main__':
     learning_rate = FLAGS.learning_rate
     epochs = FLAGS.epochs
     steps_per_epoch = FLAGS.steps_per_epoch
-        
+    initial_epoch = FLAGS.initial_epoch
+    
     params = {
         'model_dir': FLAGS.model_dir,
         'fine_tune': FLAGS.fine_tune,
         'num_classes': FLAGS.num_classes,
+        'reg': FLAGS.reg,
     }
     
     
@@ -78,7 +82,7 @@ if __name__ == '__main__':
 
         # Read Data and Augment it: Make sure to select augmentations that are appropriate to your images.
         # To save augmentations un-comment save lines and add to your flow parameters.
-        train_datagen = ImageDataGenerator(rescale=1. / 255)
+        train_datagen = ImageDataGenerator(rescale=1. / 255, horizontal_flip=True, vertical_flip=True)
         #                                    rotation_range=transformation_ratio,
         #                                    shear_range=transformation_ratio,
         #                                    zoom_range=transformation_ratio,
@@ -131,7 +135,9 @@ if __name__ == '__main__':
                     epochs=epochs,
                     workers=12,
                     steps_per_epoch=steps_per_epoch,
-                    validation_data=get_validation_generator())
+                    initial_epoch=initial_epoch,
+                    validation_data=get_validation_generator(),
+                    validation_steps=None)
         
     elif FLAGS.mode.lower() == "eval":
         print("Eval mode..")
@@ -166,7 +172,6 @@ if __name__ == '__main__':
         f=open(FLAGS.debug_dump_file, "w")
         f.write("image_id,label_prob\n")
         
-        # TODO: Please set the corresponding input_fn for your data set!!
         valid_pred=model.predict(get_validation_generator())
         img_id=1
         
