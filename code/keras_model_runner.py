@@ -6,8 +6,8 @@ import re
 from tqdm import tqdm
 from utils.keras_image import ImageDataGenerator
 from estimator.input_fn import load_labels
-# from xception import KerasXception
-from densenet169 import KerasDenseNet
+from xception_v2 import KerasXception
+# from densenet169 import KerasDenseNet
 
 tf.app.flags.DEFINE_integer("augment", 0, "")
 tf.app.flags.DEFINE_integer("batch_size", 64, "")
@@ -74,7 +74,8 @@ if __name__ == '__main__':
     
     
     # Get model
-    model = KerasDenseNet(params)
+#     model = KerasDenseNet(params)
+    model = KerasXception(params)
     
     ##########################
     ##Prepare data generator##
@@ -169,19 +170,22 @@ if __name__ == '__main__':
         print("Processed %d examples. Good Luck! :)"%(img_id))
         f.close()
         
-    elif FLAGS.mode.lower() == "debug":
+    elif FLAGS.mode.lower() in ["debug", "debug_test"]:
+        is_test = FLAGS.mode.lower() == "debug_test"
+        debug_generator = get_test_generator() if is_test else get_validation_generator()
+        total_count = NUM_TEST if is_test else NUM_VALID
+
         print("Debugging model, output class prediction probablities to %s."%(FLAGS.debug_dump_file))
-        f=open(FLAGS.debug_dump_file, "w")
-        f.write("image_id,label_prob\n")
-        
-        valid_pred=model.predict(get_validation_generator())
-        img_id=1
-        
-        with tqdm(total=NUM_VALID) as progress_bar:
-            for pred in valid_pred:
-                labels=" ".join(["%.2f"%(p) for p in pred])
-                f.write("%d,%s\n"%(img_id, labels))
-                img_id += 1
-                progress_bar.update(1)
-        print("Processed %d examples. Happy Debugging! :)"%(img_id))
-        f.close()
+        with open(FLAGS.debug_dump_file, "w") as f:
+            f.write("image_id,label_prob\n")
+
+            probs = model.predict(debug_generator)
+            img_id=1
+
+            with tqdm(total=total_count) as progress_bar:
+                for prob in probs:
+                    labels=" ".join(["%.2f"%(p) for p in prob])
+                    f.write("%d,%s\n"%(img_id, labels))
+                    img_id += 1
+                    progress_bar.update(1)
+            print("Processed %d examples. Happy Debugging! :)"%(img_id))
