@@ -10,12 +10,17 @@ import tensorflow as tf
 from tqdm import tqdm
 import re
 import pandas as pd
+import csv
 
 NUM_TEST = 39706
+NUM_VALID = 9897
+
 
 tf.app.flags.DEFINE_string("ensemble_dir", '', "Ensemble directory.")
 tf.app.flags.DEFINE_string("ensemble_output", '', "Output path.")
 tf.app.flags.DEFINE_string("pred_threshold", '', "the threshold for prediction")
+tf.app.flags.DEFINE_string("output_type", 'prob', "[prob|pred]")
+tf.app.flags.DEFINE_string("mode", 'test', "[test|validate]")
 FLAGS = tf.app.flags.FLAGS
 
 
@@ -29,7 +34,9 @@ def write_predictions(probs, output_file):
         FLAGS.test_prediction
         FLAGS.pred_threshold
     """
+    total_count = NUM_TEST if FLAGS.mode == 'test' else NUM_VALID
     print("Saving test data to: ", output_file)
+
     with open(output_file, "w") as f:
         f.write("image_id,label_id\n")
         img_id = 1
@@ -43,7 +50,7 @@ def write_predictions(probs, output_file):
             th = float(FLAGS.pred_threshold)
             thresholds = [th for i in range(228)]
 
-        with tqdm(total=NUM_TEST) as progress_bar:
+        with tqdm(total=total_count) as progress_bar:
             for prob in probs:
                 labels=" ".join([
                     str(i+1)
@@ -54,7 +61,20 @@ def write_predictions(probs, output_file):
                 img_id += 1
                 progress_bar.update(1)
         print("Processed %d examples. Good Luck! :)"%(img_id))
-    
+
+
+def write_probs(probs, output_file):
+    total_count = NUM_TEST if FLAGS.mode == 'test' else NUM_VALID
+    with open(output_file, 'w') as f:
+        writer = csv.writer(f, delimiter=',')
+        writer.writerow(['image_id', 'label_prob'])
+        
+        with tqdm(total=total_count) as progress_bar:
+            for img_id, prob in enumerate(probs, start=1):
+                prob_str = ' '.join(["%.2f"%(p) for p in prob])
+                writer.writerow([img_id, prob_str])
+
+                progress_bar.update(1)
 
 def predict(ensemble_label_to_model_meta, run_config, params, test_input_fn):
     """
@@ -112,17 +132,23 @@ def predict(ensemble_label_to_model_meta, run_config, params, test_input_fn):
 
 
 if __name__ == '__main__':
-    assert FLAGS.pred_threshold, 'FLAGS.pred_threshold is required.'
+    assert FLAGS.pred_threshold or FLAGS.output_type == 'prob', 'FLAGS.pred_threshold is required.'
     assert FLAGS.ensemble_dir, 'FLAGS.ensemble_dir is required.'
     assert FLAGS.ensemble_output, 'FLAGS.ensemble_output is required.'
+    assert FLAGS.mode in ['test', 'validate']
+    assert FLAGS.output_type in ['prob', 'pred']
+    
     ensemble_dir = FLAGS.ensemble_dir
     output_file = FLAGS.ensemble_output
     
-    ensemble_dir = '/home/minfa/ensemble_dir'
     prob_files = os.listdir(ensemble_dir)
     agg_probs = None
 
     for prob_file in prob_files:
+        if not prob_file.endswith('.csv'):
+            print('[WARNING] Skip non-csv file: {}'.format(prob_file))
+            continue
+            
         prob_file_path = os.path.join(ensemble_dir, prob_file)
         print("Reading data from: {}".format(prob_file_path))
 
@@ -134,4 +160,6 @@ if __name__ == '__main__':
             agg_probs += probs
 
     agg_probs /= len(prob_files)
-    write_predictions(agg_probs, output_file)
+    
+    write_fn = write_probs if FLAGS.output_type == 'prob' else write_predictions
+    write_fn(agg_probs, output_file)
