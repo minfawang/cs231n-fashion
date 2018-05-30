@@ -1910,7 +1910,7 @@ class DirectoryIterator(Iterator):
 
         feature_fns = [
             hog_feature,
-            lambda img: color_histogram_hsv(img, nbin=num_color_bins)
+            lambda img: color_histogram_hsv(img, xmin=0.0, xmax=1.0, nbin=num_color_bins)
         ]
         
         batch_x = np.zeros(
