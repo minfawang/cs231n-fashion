@@ -69,10 +69,10 @@ class KerasDenseNet:
         else:
             print("@@@@@Fine tune enabled.@@@@@")
             print("Fine tune the last feature flow and the entire exit flow")
-            for layer in model.layers[:116]:
+            for layer in model.layers[:53]: # 369 seems to work fine
                 layer.trainable = False
                 
-            for layer in model.layers[116:]:
+            for layer in model.layers[53:]:
                 layer.trainable = True
                 layer.kernel_regularizer = regularizers.l2(self.reg)
         
@@ -99,7 +99,7 @@ class KerasDenseNet:
             ModelCheckpoint(self.model_checkpoint, monitor='val_acc', verbose=1, save_best_only=True),
             # Save model with best fscore5
             ModelCheckpoint(self.model_file, monitor='val_fscore5', verbose=1, mode='max', save_best_only=True),
-            EarlyStopping(monitor='val_acc', patience=5, verbose=1),
+            # EarlyStopping(monitor='val_acc', patience=5, verbose=1),
             TensorBoard(log_dir=self.model_dir, 
                         histogram_freq=0, batch_size=32, write_graph=True, write_grads=False, write_images=True, 
                         embeddings_freq=0, embeddings_layer_names=None, embeddings_metadata=None)

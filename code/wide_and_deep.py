@@ -1,34 +1,20 @@
 import os
+import tensorflow as tf
 import numpy as np
 from keras.applications.xception import Xception as DeepModel
 from keras.preprocessing import image
 from keras import metrics
 from keras.models import Model
-from keras.layers import Dense, GlobalAveragePooling2D
+from keras.layers import Dense, GlobalAveragePooling2D, Reshape, Input, Lambda, Concatenate
 from utils.custom_metrics import FMetrics, FMetricsCallback
 from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard
 from keras.optimizers import Nadam
 from keras import regularizers
+import keras.backend as K
 
 MODEL_BEST_NAME = 'top_model_weights.h5'
 MODEL_CHECKPOINT_NAME = 'model_weights-{epoch:02d}-{val_acc:.2f}.hdf5'
-
-
-                     binbinx   21502 F...m tensorboard
-                     binbinx   21656 F...m python
-                     binbinx   24823 F...m python
-                     binbinx   24824 F...m python
-                     binbinx   24825 F...m python
-                     binbinx   24826 F...m python
-                     binbinx   24827 F...m python
-                     binbinx   24828 F...m python
-                     binbinx   24829 F...m python
-                     binbinx   24830 F...m python
-                     binbinx   24831 F...m python
-                     binbinx   24832 F...m python
-                     binbinx   24833 F...m python
-
-                    
+  
                     
 class WideDeep:
     
@@ -44,6 +30,7 @@ class WideDeep:
         self.wide_model_dir = self.params['wide_model_dir']
         self.deep_model_dir = self.params['deep_model_dir']
         
+        self.input = Input(shape=(299 * 299 * 3 + 12331,))
         self.model_file = os.path.join(self.model_dir, MODEL_BEST_NAME)
         self.model_checkpoint = os.path.join(self.model_dir, MODEL_CHECKPOINT_NAME)
         
@@ -55,65 +42,89 @@ class WideDeep:
             # load the model weights
             print ("Load model weights from %s"%(self.model_file))
             self.model.load_weights(self.model_file)
-        
-        return self.model
+        else:
+            if os.path.exists(self.wide_model_dir):
+                print ("Load WIDE model weights from %s"%(self.wide_model_dir))
+                self.model.load_weights(self.wide_model_dir)
+            if os.path.exists(self.deep_model_dir):
+                print ("Load DEEP model weights from %s"%(self.deep_model_dir))
+                self.model.load_weights(self.deep_model_dir)
+
+#         return self.model
     
     
-    def __build_model(self, enable_fine_tune):
+    def __build_graph(self, enable_fine_tune):
         self.wide_model = self.__build_wide_model(enable_fine_tune)
-        self.deep_model = self.__build_wode_model(enable_fine_tune)
+        self.deep_model = self.__build_deep_model(enable_fine_tune)
         
-        # concatenate wide and deep feature vector
-        self.model = tf.stack
-            
-            
-    def __build_deep_graph(self, enable_fine_tune):
-        # load pre-trained deep model
-        deep_model = DeepModel(weights='imagenet', include_top=False)
-
-        # add a global spatial max pooling layer
-        x = deep_model.output #(?,3,3,2048)
-
+        # Concatenate wide and deep feature vector
+        # The input for wide and deep should be the same
+        wide_output = self.wide_model
+        deep_output = self.deep_model
+        assert K.int_shape(wide_output) == (None, 12331), 'K.int_shape(wide_output): {}'.format(K.int_shape(wide_output))
+        assert K.int_shape(deep_output) == (None, 2048), 'K.int_shape(deep_output): {}'.format(K.int_shape(deep_output))
+        x = Concatenate(axis=1)([wide_output, deep_output])
+        assert K.int_shape(x) == (None, 2048+12331), 'K.int_shape(x): {}'.format(K.int_shape(x))
+        
+        # Build a dense layer on top of it
         predictions = Dense(self.num_classes, activation='sigmoid')(x)
-
-        # this is the model we will train
-        model = Model(inputs=base_model.input, outputs=predictions)
+        
+        self.model = Model(inputs=self.input, outputs=predictions)
+        
         f_metrics = FMetrics()
         f_scores = f_metrics.get_fscores()
-        
-        if not enable_fine_tune:
-            # first: train only the top layers (which were randomly initialized)
-            # i.e. freeze all convolutional InceptionV3 layers
-            for layer in base_model.layers:
-                layer.trainable = False
 
+        if not enable_fine_tune:
             # compile the model (should be done *after* setting layers to non-trainable)
-            model.compile(optimizer='rmsprop', 
+            self.model.compile(optimizer='rmsprop', 
                           loss='binary_crossentropy',
                           metrics=['accuracy']+f_scores)
         else:
-            print("@@@@@Fine tune enabled.@@@@@")
-            print("Fine tune the last feature flow and the entire exit flow")
-            for layer in model.layers[:116]:
-                layer.trainable = False
-                
-            for layer in model.layers[116:]:
-                layer.trainable = True
-                layer.kernel_regularizer = regularizers.l2(self.reg)
-        
             # compile the model with a SGD/momentum optimizer
             # and a very slow learning rate.
-            optimizer = Nadam(lr=2e-4)
-            model.compile(optimizer=optimizer,
+            optimizer = Nadam(lr=3.2e-4)
+            self.model.compile(optimizer=optimizer,
                           loss='binary_crossentropy',
                           metrics=['accuracy']+f_scores)
         
-        print (model.summary())
-        return model
-    
-    def __build_wide_graph(self, enable_fine_tune):
-        pass
+        print (self.model.summary())
+        return self.model
+            
+    def __build_deep_model(self, enable_fine_tune):
+        # load pre-trained deep model
+#         input_tensor = self.input  # (?, 299 * 299 * 3 + 12331)
         
+        input_tensor = Lambda(lambda x: x[:,:299*299*3], output_shape=(299*299*3,))(self.input)
+        input_tensor = Reshape((299, 299, 3))(input_tensor)
+        
+        deep_model = DeepModel(weights='imagenet', include_top=False, input_tensor=input_tensor)
+
+        # add a global spatial max pooling layer
+        x = deep_model.output  # (?, 10, 10, 2048)
+        x = GlobalAveragePooling2D()(x) #(?, 2048)
+
+        if not enable_fine_tune:
+            # first: train only the top layers (which were randomly initialized)
+            # i.e. freeze all convolutional InceptionV3 layers
+            for layer in deep_model.layers:
+                layer.trainable = False
+        else:
+            print("@@@@@Fine tune enabled.@@@@@")
+            print("Fine tune the last feature flow and the entire exit flow")
+            for layer in deep_model.layers[:131]:
+                layer.trainable = False
+                
+            for layer in deep_model.layers[131:]:
+                layer.trainable = True
+                layer.kernel_regularizer = regularizers.l2(self.reg)
+        
+        return x
+
+    
+    def __build_wide_model(self, enable_fine_tune):
+        input_tensor = Lambda(lambda x: x[:,299*299*3:], output_shape=(12331,))(self.input)
+        return input_tensor
+
 
     ###################################################
     def train(self, train_generator, validation_data=None, validation_steps=None,

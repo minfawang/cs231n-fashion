@@ -4,9 +4,11 @@ import os
 import pandas as pd
 import re
 from tqdm import tqdm
-from utils.keras_image import ImageDataGenerator
+from utils.keras_image_wad import ImageDataGenerator
 from estimator.input_fn import load_labels
 from xception import KerasXception
+from wide_and_deep import WideDeep
+# from xception_v2 import KerasXception
 # from densenet169 import KerasDenseNet
 
 tf.app.flags.DEFINE_integer("augment", 0, "")
@@ -21,6 +23,8 @@ tf.app.flags.DEFINE_string("test_data_dir", '/home/fashion/data/test_processed',
 tf.app.flags.DEFINE_string("test_prediction", '/home/shared/cs231n-fashion/submission/test_prediction.csv', "")
 tf.app.flags.DEFINE_string("debug_dump_file", 'debug.csv', "")
 tf.app.flags.DEFINE_string("model_dir", '/home/shared/cs231n-fashion/model_dir/keras_xception/', "")
+tf.app.flags.DEFINE_string("wide_model_dir", '/home/shared/cs231n-fashion/model_dir/wide_keras_xception/', "")
+tf.app.flags.DEFINE_string("deep_model_dir", '/home/shared/cs231n-fashion/model_dir/keras_xception/', "")
 
 tf.app.flags.DEFINE_integer("num_classes", 228, "")
 tf.app.flags.DEFINE_float("learning_rate", 3e-4, "")
@@ -70,12 +74,15 @@ if __name__ == '__main__':
         'num_classes': FLAGS.num_classes,
         'image_size': IMG_SIZE,
         'reg': FLAGS.reg,
+        'wide_model_dir': FLAGS.wide_model_dir,
+        'deep_model_dir': FLAGS.deep_model_dir,
     }
     
     
     # Get model
 #     model = KerasDenseNet(params)
-    model = KerasXception(params)
+#     model = KerasXception(params)
+    model = WideDeep(params)
     
     ##########################
     ##Prepare data generator##
