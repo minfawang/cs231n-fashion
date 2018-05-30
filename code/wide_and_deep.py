@@ -12,23 +12,7 @@ from keras import regularizers
 
 MODEL_BEST_NAME = 'top_model_weights.h5'
 MODEL_CHECKPOINT_NAME = 'model_weights-{epoch:02d}-{val_acc:.2f}.hdf5'
-
-
-                     binbinx   21502 F...m tensorboard
-                     binbinx   21656 F...m python
-                     binbinx   24823 F...m python
-                     binbinx   24824 F...m python
-                     binbinx   24825 F...m python
-                     binbinx   24826 F...m python
-                     binbinx   24827 F...m python
-                     binbinx   24828 F...m python
-                     binbinx   24829 F...m python
-                     binbinx   24830 F...m python
-                     binbinx   24831 F...m python
-                     binbinx   24832 F...m python
-                     binbinx   24833 F...m python
-
-                    
+  
                     
 class WideDeep:
     
@@ -64,7 +48,7 @@ class WideDeep:
         self.deep_model = self.__build_wode_model(enable_fine_tune)
         
         # concatenate wide and deep feature vector
-        self.model = tf.stack
+        self.model = tf.concat([self.wide_model, self.deep_model], axis=1)
             
             
     def __build_deep_graph(self, enable_fine_tune):
