@@ -7,12 +7,17 @@ import re
 import input_fn
 from tqdm import tqdm
 import logging
-import ensemble
+# import ..ensemble
 import time
 # from baseline_model import model_fn
 # from baseline_model_gru import model_fn
 from baseline_model_dense import model_fn
 # from baseline_model_dense2 import model_fn
+import sys
+parent_dir = os.path.join(os.path.dirname(os.path.realpath(__file__)), '..')
+sys.path.append(parent_dir)
+import ensemble
+
 
 tf.app.flags.DEFINE_integer("augment", 0, "")
 tf.app.flags.DEFINE_integer("batch_size", 32, "")
@@ -43,7 +48,6 @@ tf.app.flags.DEFINE_string("eval_thresholds", "0.1;0.15;0.2;0.25;0.3;0.4;0.5;0.6
 tf.app.flags.DEFINE_bool("module_trainable", False, "whether the pretrained model is trainable or not.")
 
 tf.app.flags.DEFINE_string("mode", "train", "train, eval, or test")
-tf.app.flags.DEFINE_string("pred_threshold", "0.2", "the threshold for prediction")
 tf.app.flags.DEFINE_string('gpu_id', '0', 'the device to use for training.')
 tf.app.flags.DEFINE_string('log_file', '', 'If not empty, will put tf log to the specific file path.')
 
@@ -129,7 +133,7 @@ if __name__ == '__main__':
     train_input_fn = lambda: input_fn.input_fn(
         train_data_dir,
         train_label,
-        repeat=False,
+        repeat=True,
         batch_size=batch_size,
         num_threads=num_threads,
     )
@@ -155,7 +159,7 @@ if __name__ == '__main__':
     train_tfr_input_fn = lambda: input_fn.tf_record_input_fn(
         FLAGS.train_tfrecord, 
         batch_size=batch_size,
-        repeat=False,
+        repeat=True,
         num_threads=num_threads)
     
     valid_tfr_input_fn = lambda: input_fn.tf_record_input_fn(
@@ -178,15 +182,16 @@ if __name__ == '__main__':
     if FLAGS.mode.lower() == "train":
         print("Training mode..")
         cur_epoch = 1
+        classifier.train(train_tfr_input_fn)
 
-        while num_epoch == -1 or cur_epoch < num_epoch:
-            print("Epoch %d."%(cur_epoch))
-            classifier.train(train_tfr_input_fn)
-            eval_data=classifier.evaluate(valid_input_fn)
-            print("Eval data: ", eval_data)
-            cur_epoch += 1
+#         while num_epoch == -1 or cur_epoch < num_epoch:
+#             print("Epoch %d."%(cur_epoch))
+#             classifier.train(train_tfr_input_fn)
+#             eval_data=classifier.evaluate(valid_input_fn)
+#             print("Eval data: ", eval_data)
+#             cur_epoch += 1
         
-        print("Train done: %d epochs since last run."%(cur_epoch))
+#         print("Train done: %d epochs since last run."%(cur_epoch))
         
     elif FLAGS.mode.lower() == "eval":
         eval_data=classifier.evaluate(valid_tfr_input_fn)
@@ -207,17 +212,21 @@ if __name__ == '__main__':
             ])
         ensemble.write_predictions(probs, FLAGS.test_prediction)
         
-    elif FLAGS.mode.lower() == "debug":
+    elif FLAGS.mode.lower() in ["debug", "debug_test"]:
+        is_test = FLAGS.mode.lower() == "debug_test"
+        debug_input_fn = test_input_fn if is_test else valid_tfr_input_fn
+        total_count = NUM_TEST if is_test else NUM_VALID
+        
         print("Debugging model, output class prediction probablities to file.")
         f=open(FLAGS.debug_dump_file, "w")
         f.write("image_id,label_prob\n")
         
         # TODO: Please set the corresponding input_fn for your data set!!
-        valid_pred=classifier.predict(valid_tfr_input_fn)
+        preds = classifier.predict(debug_input_fn)
         img_id=1
         
-        with tqdm(total=NUM_VALID) as progress_bar:
-            for pred in valid_pred:
+        with tqdm(total=total_count) as progress_bar:
+            for pred in preds:
                 labels=" ".join(["%.2f"%(p) for p in pred['probs']])
                 f.write("%d,%s\n"%(img_id, labels))
                 img_id += 1

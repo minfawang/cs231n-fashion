@@ -1,6 +1,6 @@
 """
 Example command:
-python code/estimator/model_runner.py --mode=test --ensemble_model_dir=/home/shared/cs231n-fashion/model_dir/ --pred_threshold=0.8 --gpu_id=1 --test_prediction=/home/minfa/test_ensemble_prediction.csv --batch_size=256
+python ensemble.py --pred_threshold=0.2 --ensemble_dir=/home/shared/ensemble_dir --ensemble_output=/home/shared/ensemble_output.csv
 """
 
 import importlib
@@ -11,8 +11,12 @@ from tqdm import tqdm
 import re
 import pandas as pd
 
-FLAGS = tf.app.flags.FLAGS
 NUM_TEST = 39706
+
+tf.app.flags.DEFINE_string("ensemble_dir", '', "Ensemble directory.")
+tf.app.flags.DEFINE_string("ensemble_output", '', "Output path.")
+tf.app.flags.DEFINE_string("pred_threshold", '', "the threshold for prediction")
+FLAGS = tf.app.flags.FLAGS
 
 
 def write_predictions(probs, output_file):
@@ -105,3 +109,29 @@ def predict(ensemble_label_to_model_meta, run_config, params, test_input_fn):
     
     agg_probs /= total_weight
     return agg_probs
+
+
+if __name__ == '__main__':
+    assert FLAGS.pred_threshold, 'FLAGS.pred_threshold is required.'
+    assert FLAGS.ensemble_dir, 'FLAGS.ensemble_dir is required.'
+    assert FLAGS.ensemble_output, 'FLAGS.ensemble_output is required.'
+    ensemble_dir = FLAGS.ensemble_dir
+    output_file = FLAGS.ensemble_output
+    
+    ensemble_dir = '/home/minfa/ensemble_dir'
+    prob_files = os.listdir(ensemble_dir)
+    agg_probs = None
+
+    for prob_file in prob_files:
+        prob_file_path = os.path.join(ensemble_dir, prob_file)
+        print("Reading data from: {}".format(prob_file_path))
+
+        probs = pd.read_csv(prob_file_path)['label_prob'].map(lambda x: np.array([float(v) for v in x.split(' ')])).values
+        probs = np.array(probs.tolist())
+        if agg_probs is None:
+            agg_probs = probs
+        else:
+            agg_probs += probs
+
+    agg_probs /= len(prob_files)
+    write_predictions(agg_probs, output_file)
