@@ -66,7 +66,7 @@ exit
 
 ```bash
 # run training.
-python code/model_runner.py --mode=train --module_trainable=true --model_dir=/home/shared/cs231n-fashion/model_dir/baseline2/ 
+python code/keras_model_runner.py --mode=train --fine_tune --reg=0.00001 --steps_per_epoch=2000 --batch_size=64 --initial_epoch=0 --model_dir=model_dir/keras_xception/
 ```
 
 ##### Testing
