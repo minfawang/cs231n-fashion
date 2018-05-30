@@ -71,6 +71,7 @@ def set_log_to_file(log_file):
     print('Streaming tf log to file: {}'.format(log_file))
     time.sleep(3)
     log = logging.getLogger('tensorflow')
+    log.setLevel('WARN')
     assert len(log.handlers) == 1, 'tf logging handler should contain only stdout.'
     log.removeHandler(log.handlers[0])
 
@@ -84,8 +85,11 @@ def set_log_to_file(log_file):
 
 
 if __name__ == '__main__':
+    if FLAGS.log_file:
+        set_log_to_file(FLAGS.log_file)
+    
     run_config=tf.estimator.RunConfig(
-        session_config=tf.ConfigProto(log_device_placement=True),
+        session_config=tf.ConfigProto(log_device_placement=False),
         save_checkpoints_secs=30*60,
         keep_checkpoint_max=10,
     )
