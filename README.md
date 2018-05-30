@@ -88,6 +88,12 @@ python code/model_runner.py --mode=eval --model_dir=/home/shared/cs231n-fashion/
 python code/model_runner.py --mode=debug --model_dir=/home/shared/cs231n-fashion/model_dir/baseline2/ --debug_dump_file=model_dir/baseline2/debug_dump.csv
 ```
 
+##### Print debug test dump
+Similar as above, just replace **debug** with **debug_test**. It could be used to create model ensemble.
+```
+python code/model_runner.py --mode=debug_test --model_dir=/home/shared/cs231n-fashion/model_dir/baseline2/ --debug_dump_file=model_dir/baseline2/debug_test_dump.csv
+```
+
 ##### Threshold selection
 Check binbin_playground for reference. This could give extra 3% boost for single model.
 
@@ -102,4 +108,11 @@ sh /home/binbinx/memusg.sh
 gcloud compute scp binbinx@cs231n-fashion-ssd:/home/shared/cs231n-fashion/submission/test_prediction.csv .
 ```
 
+#### Model Ensemble
 
+- For each model, run the `debug_test` command and generate a csv file.
+- Put all csv files into a single folder.
+
+```bash
+python code/ensemble.py --ensemble_dir=/home/minfa/ensemble_dir --ensemble_output=/home/minfa/ensemble_output.csv --pred_threshold=0.6
+```
