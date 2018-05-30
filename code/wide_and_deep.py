@@ -39,60 +39,78 @@ class WideDeep:
             # load the model weights
             print ("Load model weights from %s"%(self.model_file))
             self.model.load_weights(self.model_file)
-        
+        else:
+            if os.path.exists(self.wide_model_dir):
+                print ("Load WIDE model weights from %s"%(self.wide_model_dir))
+                self.model.load_weights(self.wide_model_dir)
+            if os.path.exists(self.deep_model_dir):
+                print ("Load DEEP model weights from %s"%(self.deep_model_dir))
+                self.model.load_weights(self.deep_model_dir)
+
         return self.model
     
     
     def __build_model(self, enable_fine_tune):
         self.wide_model = self.__build_wide_model(enable_fine_tune)
-        self.deep_model = self.__build_wode_model(enable_fine_tune)
+        self.deep_model = self.__build_deep_model(enable_fine_tune)
         
-        # concatenate wide and deep feature vector
-        self.model = tf.concat([self.wide_model, self.deep_model], axis=1)
-            
+        # Concatenate wide and deep feature vector
+        # The input for wide and deep should be the same
+        wide_output = self.wide_model.output
+        deep_output = self.deep_model.output
+        x = keras.layers.concatenate([wide_output, deep_output], axis=1)
+        
+        # Build a dense layer on top of it
+        predictions = Dense(self.num_classes, activation='sigmoid')(x)
+        
+        self.model = Model(inputs=deep_model.input, ouputs=predictions)
+        
+        f_metrics = FMetrics()
+        f_scores = f_metrics.get_fscores()
+
+        if not enable_fine_tune:
+            # compile the model (should be done *after* setting layers to non-trainable)
+            model.compile(optimizer='rmsprop', 
+                          loss='binary_crossentropy',
+                          metrics=['accuracy']+f_scores)
+        else:
+            # compile the model with a SGD/momentum optimizer
+            # and a very slow learning rate.
+            optimizer = Nadam(lr=3.2e-4)
+            model.compile(optimizer=optimizer,
+                          loss='binary_crossentropy',
+                          metrics=['accuracy']+f_scores)
+        
+        print (model.summary())
+        return model
             
     def __build_deep_graph(self, enable_fine_tune):
         # load pre-trained deep model
         deep_model = DeepModel(weights='imagenet', include_top=False)
 
         # add a global spatial max pooling layer
-        x = deep_model.output #(?,3,3,2048)
+        x = deep_model.output
 
         predictions = Dense(self.num_classes, activation='sigmoid')(x)
 
         # this is the model we will train
         model = Model(inputs=base_model.input, outputs=predictions)
-        f_metrics = FMetrics()
-        f_scores = f_metrics.get_fscores()
         
         if not enable_fine_tune:
             # first: train only the top layers (which were randomly initialized)
             # i.e. freeze all convolutional InceptionV3 layers
             for layer in base_model.layers:
                 layer.trainable = False
-
-            # compile the model (should be done *after* setting layers to non-trainable)
-            model.compile(optimizer='rmsprop', 
-                          loss='binary_crossentropy',
-                          metrics=['accuracy']+f_scores)
         else:
             print("@@@@@Fine tune enabled.@@@@@")
             print("Fine tune the last feature flow and the entire exit flow")
-            for layer in model.layers[:116]:
+            for layer in model.layers[:131]:
                 layer.trainable = False
                 
-            for layer in model.layers[116:]:
+            for layer in model.layers[131:]:
                 layer.trainable = True
                 layer.kernel_regularizer = regularizers.l2(self.reg)
         
-            # compile the model with a SGD/momentum optimizer
-            # and a very slow learning rate.
-            optimizer = Nadam(lr=2e-4)
-            model.compile(optimizer=optimizer,
-                          loss='binary_crossentropy',
-                          metrics=['accuracy']+f_scores)
-        
-        print (model.summary())
         return model
     
     def __build_wide_graph(self, enable_fine_tune):
