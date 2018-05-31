@@ -42,13 +42,6 @@ class WideDeep:
             # load the model weights
             print ("Load model weights from %s"%(self.model_file))
             self.model.load_weights(self.model_file)
-        else:
-            if os.path.exists(self.wide_model_dir):
-                print ("Load WIDE model weights from %s"%(self.wide_model_dir))
-                self.model.load_weights(self.wide_model_dir)
-            if os.path.exists(self.deep_model_dir):
-                print ("Load DEEP model weights from %s"%(self.deep_model_dir))
-                self.model.load_weights(self.deep_model_dir)
 
 #         return self.model
     
@@ -102,6 +95,15 @@ class WideDeep:
         # add a global spatial max pooling layer
         x = deep_model.output  # (?, 10, 10, 2048)
         x = GlobalAveragePooling2D()(x) #(?, 2048)
+        
+        # let's add a fully-connected layer
+        y = Dense(2048, activation='relu')(x)
+        # 228 classes 
+        
+        predictions = Dense(self.num_classes, activation='sigmoid')(y)
+
+        # this is the model we will train
+        model = Model(inputs=deep_model.input, outputs=predictions)
 
         if not enable_fine_tune:
             # first: train only the top layers (which were randomly initialized)
@@ -111,13 +113,17 @@ class WideDeep:
         else:
             print("@@@@@Fine tune enabled.@@@@@")
             print("Fine tune the last feature flow and the entire exit flow")
-            for layer in deep_model.layers[:131]:
+            for layer in deep_model.layers[:116]:
                 layer.trainable = False
                 
-            for layer in deep_model.layers[131:]:
+            for layer in deep_model.layers[116:]:
                 layer.trainable = True
                 layer.kernel_regularizer = regularizers.l2(self.reg)
         
+        if not os.path.exists(self.model_file) and os.path.exists(self.deep_model_dir):
+            print ("Load DEEP model weights from %s"%(self.deep_model_dir))
+            model.load_weights(self.deep_model_dir+MODEL_BEST_NAME)
+                
         return x
 
     
