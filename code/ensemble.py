@@ -1,6 +1,6 @@
 """
 Example command:
-python ensemble.py --pred_threshold=0.2 --ensemble_dir=/home/shared/ensemble_dir --ensemble_output=/home/shared/ensemble_output.csv
+python ensemble.py --pred_threshold=0.2 --ensemble_dir=/home/shared/ensemble_dir --ensemble_output=/home/shared/ensemble_output.csv --output_type='prob' --mode='validate'
 """
 
 import importlib
