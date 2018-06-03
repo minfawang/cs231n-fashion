@@ -38,6 +38,11 @@ tf.app.flags.DEFINE_string("mode", "train", "train, eval, or test")
 tf.app.flags.DEFINE_string("pred_threshold", "0.2", "the threshold for prediction")
 tf.app.flags.DEFINE_string('gpu_id', '0', 'the device to use for training.')
 
+tf.app.flags.DEFINE_bool('generator_use_wad', False, 'Whether to activate wide-and-deep mode for generator.')
+tf.app.flags.DEFINE_bool('generator_use_weight', False, 'Whether to weight images/labels in training time.')
+tf.app.flags.DEFINE_string('train_label_to_weight_map_path', 'data/train_label_to_weight_map.json', 'train_label_to_weight_map_path.')
+tf.app.flags.DEFINE_string('train_labels_count_to_weight_map_path', 'data/train_labels_count_to_weight_map.json', 'train_labels_count_to_weight_map_path.')
+
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -59,15 +64,15 @@ if __name__ == '__main__':
     valid_data_dir = FLAGS.valid_data_dir
     valid_label = FLAGS.valid_label
     test_data_dir = FLAGS.test_data_dir
-    
-        
+
+
     # Define global variables.
     num_classes = FLAGS.num_classes
     learning_rate = FLAGS.learning_rate
     epochs = FLAGS.epochs
     steps_per_epoch = FLAGS.steps_per_epoch
     initial_epoch = FLAGS.initial_epoch
-    
+
     params = {
         'model_dir': FLAGS.model_dir,
         'fine_tune': FLAGS.fine_tune,
@@ -77,13 +82,13 @@ if __name__ == '__main__':
         'wide_model_dir': FLAGS.wide_model_dir,
         'deep_model_dir': FLAGS.deep_model_dir,
     }
-    
-    
+
+
     # Get model
 #     model = KerasDenseNet(params)
 #     model = KerasXception(params)
     model = WideDeep(params)
-    
+
     ##########################
     ##Prepare data generator##
     ##########################
@@ -111,7 +116,7 @@ if __name__ == '__main__':
         # save_format='jpeg')
         # use the above 3 commented lines if you want to save and look at how the data augmentations look like
         return train_generator
-    
+
     def get_validation_generator():
         valid_label_map = load_labels(json_path=valid_label)
         validation_datagen = ImageDataGenerator(rescale=1. / 255)
@@ -123,7 +128,7 @@ if __name__ == '__main__':
                                                                       class_mode='multilabel',
                                                                       multilabel_classes=valid_label_map)
         return validation_generator
-    
+
     def get_test_generator():
         test_datagen = ImageDataGenerator(rescale=1./255)
         test_generator = test_datagen.flow_from_directory(test_data_dir,
@@ -133,11 +138,11 @@ if __name__ == '__main__':
                                                           shuffle=False,
                                                           class_mode=None)
         return test_generator
-    
+
     ###############################
     ##Prepare data generator DONE##
     ###############################
-    
+
     if FLAGS.mode.lower() == "train":
         print("Training mode..")
         model.train(get_train_generator(),
@@ -148,11 +153,15 @@ if __name__ == '__main__':
                     initial_epoch=initial_epoch,
                     validation_data=get_validation_generator(),
                     validation_steps=None)
-        
-    elif FLAGS.mode.lower() == "eval":
+        return
+
+    # Disable weighting in non-training settings.
+    FLAGS.generator_use_weight = False
+
+    if FLAGS.mode.lower() == "eval":
         print("Eval mode..")
         model.eval(get_validation_generator())
-        
+
     elif FLAGS.mode.lower() == "test":
         print("Saving test data to: ", FLAGS.test_prediction)
         f=open(FLAGS.test_prediction, "w")
@@ -166,7 +175,7 @@ if __name__ == '__main__':
         else:
             th=float(FLAGS.pred_threshold)
             thresholds=[th for i in range(228)]
-        
+
         test_pred=model.predict(get_test_generator())
         with tqdm(total=NUM_TEST) as progress_bar:
             for pred in test_pred:
@@ -176,7 +185,7 @@ if __name__ == '__main__':
                 progress_bar.update(1)
         print("Processed %d examples. Good Luck! :)"%(img_id))
         f.close()
-        
+
     elif FLAGS.mode.lower() in ["debug", "debug_test"]:
         is_test = FLAGS.mode.lower() == "debug_test"
         debug_generator = get_test_generator() if is_test else get_validation_generator()
