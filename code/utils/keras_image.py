@@ -1086,6 +1086,20 @@ class ImageDataGenerator(object):
                 of images with shape `(batch_size, *target_size, channels)`
                 and `y` is a numpy array of corresponding labels.
         """
+        if self.is_training and FLAGS.generator_use_weight:
+            with open(FLAGS.train_label_to_weight_map_path, 'r') as fin:
+                self._label_id_to_weight_map = {
+                    int(label_id) : float(weight)
+                    for label_id, weight in json.load(fin).items()
+                }
+                assert len(self._label_id_to_weight_map) == 228
+
+            with open(FLAGS.train_labels_count_to_weight_map_path, 'r') as fin:
+                self._labels_count_to_weight_map = {
+                    int(labels_count) : float(weight)
+                    for labels_count, weight in json.load(fin).items()
+                }
+
         return DirectoryIterator(
             directory, self,
             target_size=target_size, color_mode=color_mode,
@@ -1995,21 +2009,10 @@ class DirectoryIterator(Iterator):
 
         if self.image_data_generator.is_training and FLAGS.generator_use_weight:
             batch_size = len(batch_x)
-            batch_weight = np.ones(shape=(batch_size,))
+            batch_weight = np.zeros(shape=(batch_size,))
 
-            with open(FLAGS.train_label_to_weight_map_path, 'r') as fin:
-                label_id_to_weight_map = {
-                    int(label_id) : float(weight)
-                    for label_id, weight in json.load(fin).items()
-                }
-                assert len(label_id_to_weight_map) == 228
-
-            with open(FLAGS.train_labels_count_to_weight_map_path, 'r') as fin:
-                labels_count_to_weight_map = {
-                    int(labels_count) : float(weight)
-                    for labels_count, weight in json.load(fin).items()
-                }
-
+            label_id_to_weight_map = self.image_data_generator._label_id_to_weight_map
+            labels_count_to_weight_map = self.image_data_generator._labels_count_to_weight_map
 
             for i, label_vals in enumerate(batch_y):
                 label_ids = [
