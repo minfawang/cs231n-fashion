@@ -32,6 +32,7 @@ tf.app.flags.DEFINE_integer("epochs", 36, "")
 tf.app.flags.DEFINE_integer("steps_per_epoch", 1000, "")
 tf.app.flags.DEFINE_integer("initial_epoch", 0, "")
 tf.app.flags.DEFINE_float("reg", 1e-5, "")
+tf.app.flags.DEFINE_float("drop_out_rate", 0.2, "")
 
 tf.app.flags.DEFINE_bool("fine_tune", False, "Whether to fine tune the model or not.")
 tf.app.flags.DEFINE_string("mode", "train", "train, eval, or test")
@@ -81,6 +82,7 @@ if __name__ == '__main__':
         'reg': FLAGS.reg,
         'wide_model_dir': FLAGS.wide_model_dir,
         'deep_model_dir': FLAGS.deep_model_dir,
+        'drop_out_rate': FLAGS.drop_out_rate,
     }
 
 

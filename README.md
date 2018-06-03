@@ -121,3 +121,9 @@ gcloud compute scp binbinx@cs231n-fashion-ssd:/home/shared/cs231n-fashion/submis
 ```bash
 python code/ensemble.py --pred_threshold=0.2 --ensemble_dir=/home/shared/ensemble_dir --ensemble_output=/home/shared/ensemble_output.csv --output_type='prob' --mode='validate'
 ```
+
+#### Scratch Pad
+```bash
+python code/keras_model_runner.py --mode=train --model_dir=model_dir/keras_xception/retrain/ --drop_out_rate=0.2 --reg=0.00001 --gpu_id=0 --batch_size=32 --steps_per_epoch=1600 --epochs=1000 --fine_tune
+
+```

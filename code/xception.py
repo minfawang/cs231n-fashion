@@ -4,7 +4,7 @@ from keras.applications.xception import Xception
 from keras.preprocessing import image
 from keras import metrics
 from keras.models import Model
-from keras.layers import Dense, GlobalAveragePooling2D
+from keras.layers import Dense, GlobalAveragePooling2D, Dropout
 from utils.custom_metrics import FMetrics, FMetricsCallback
 from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard
 from keras.optimizers import Nadam
@@ -23,6 +23,7 @@ class KerasXception:
         self.num_classes = self.params['num_classes']
         self.fine_tune = self.params['fine_tune']
         self.reg = self.params['reg']
+        self.drop_out_rate = self.params['drop_out_rate']
 
         self.model_file = os.path.join(self.model_dir, MODEL_BEST_NAME)
         self.model_checkpoint = os.path.join(self.model_dir, MODEL_CHECKPOINT_NAME)
@@ -45,8 +46,10 @@ class KerasXception:
         x = base_model.output #(?,3,3,2048)
         x = GlobalAveragePooling2D()(x) #(?, 2048)
 
-        # let's add a fully-connected layer
-        x = Dense(2048, activation='relu')(x)
+#         # let's add a fully-connected layer
+#         x = Dense(2048, activation='relu')(x)
+        x = Dropout(rate=self.drop_out_rate)(x)
+
         # 228 classes 
         predictions = Dense(self.num_classes, activation='sigmoid')(x)
 
@@ -68,16 +71,17 @@ class KerasXception:
         else:
             print("@@@@@Fine tune enabled.@@@@@")
             print("Fine tune the last feature flow and the entire exit flow")
-            for layer in model.layers[:36]: # change from 116 to 36
-                layer.trainable = False
-                
-            for layer in model.layers[36:]:
+            for layer in model.layers: # change from 116 to 36 to ALL
                 layer.trainable = True
                 layer.kernel_regularizer = regularizers.l2(self.reg)
+                
+#             for layer in model.layers[36:]:
+#                 layer.trainable = True
+#                 layer.kernel_regularizer = regularizers.l2(self.reg)
         
             # compile the model with a SGD/momentum optimizer
             # and a very slow learning rate.
-            optimizer = Nadam(lr=3.2e-4)
+            optimizer = Nadam(lr=5e-4)
             model.compile(optimizer=optimizer,
                           loss='binary_crossentropy',
                           metrics=['accuracy']+f_scores)
