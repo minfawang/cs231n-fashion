@@ -1,2 +1,4 @@
 **
 !.gitignore
+!train_labels_count_to_weight_map.json
+!train_label_to_weight_map.json
