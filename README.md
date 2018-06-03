@@ -114,5 +114,5 @@ gcloud compute scp binbinx@cs231n-fashion-ssd:/home/shared/cs231n-fashion/submis
 - Put all csv files into a single folder.
 
 ```bash
-python code/ensemble.py --ensemble_dir=/home/minfa/ensemble_dir --ensemble_output=/home/minfa/ensemble_output.csv --pred_threshold=0.6
+python code/ensemble.py --pred_threshold=0.2 --ensemble_dir=/home/shared/ensemble_dir --ensemble_output=/home/shared/ensemble_output.csv --output_type='prob' --mode='validate'
 ```
