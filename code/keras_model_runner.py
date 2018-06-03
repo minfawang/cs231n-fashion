@@ -4,7 +4,7 @@ import os
 import pandas as pd
 import re
 from tqdm import tqdm
-from utils.keras_image_wad import ImageDataGenerator
+from utils.keras_image import ImageDataGenerator
 from estimator.input_fn import load_labels
 from xception import KerasXception
 from wide_and_deep import WideDeep
@@ -86,8 +86,8 @@ if __name__ == '__main__':
 
     # Get model
 #     model = KerasDenseNet(params)
-#     model = KerasXception(params)
-    model = WideDeep(params)
+    model = KerasXception(params)
+#     model = WideDeep(params)
 
     ##########################
     ##Prepare data generator##
@@ -97,7 +97,7 @@ if __name__ == '__main__':
 
         # Read Data and Augment it: Make sure to select augmentations that are appropriate to your images.
         # To save augmentations un-comment save lines and add to your flow parameters.
-        train_datagen = ImageDataGenerator(rescale=1. / 255, horizontal_flip=True, vertical_flip=True)
+        train_datagen = ImageDataGenerator(rescale=1. / 255, horizontal_flip=True, vertical_flip=True, is_training=True)
         #                                    rotation_range=transformation_ratio,
         #                                    shear_range=transformation_ratio,
         #                                    zoom_range=transformation_ratio,
@@ -153,7 +153,7 @@ if __name__ == '__main__':
                     initial_epoch=initial_epoch,
                     validation_data=get_validation_generator(),
                     validation_steps=None)
-        return
+        exit(0)
 
     # Disable weighting in non-training settings.
     FLAGS.generator_use_weight = False

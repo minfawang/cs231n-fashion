@@ -862,7 +862,8 @@ class ImageDataGenerator(object):
                  rescale=None,
                  preprocessing_function=None,
                  data_format=None,
-                 validation_split=0.0):
+                 validation_split=0.0,
+                 is_training=False):
         if data_format is None:
             data_format = K.image_data_format()
         self.featurewise_center = featurewise_center
@@ -884,6 +885,7 @@ class ImageDataGenerator(object):
         self.vertical_flip = vertical_flip
         self.rescale = rescale
         self.preprocessing_function = preprocessing_function
+        self.is_training = is_training
 
         if data_format not in {'channels_last', 'channels_first'}:
             raise ValueError(
@@ -1991,7 +1993,7 @@ class DirectoryIterator(Iterator):
         else:
             return batch_x
 
-        if FLAGS.generator_use_weight:
+        if self.image_data_generator.is_training and FLAGS.generator_use_weight:
             batch_size = len(batch_x)
             batch_weight = np.ones(shape=(batch_size,))
 
