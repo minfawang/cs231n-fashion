@@ -69,6 +69,11 @@ exit
 python code/keras_model_runner.py --mode=train --fine_tune --reg=0.00001 --steps_per_epoch=2000 --batch_size=64 --initial_epoch=0 --model_dir=model_dir/keras_xception/
 ```
 
+**Additional flags:**
+
+* `--generator_use_weight=1`: Assign per-calss weights in training time.
+* `--generator_use_wad=1`: Generate wide-and-deep features.
+
 ##### Testing
 ```bash
 # run test, generate submission file. If set pred_threshold to a filename, then use per class threshold.
