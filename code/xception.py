@@ -81,7 +81,7 @@ class KerasXception:
         
             # compile the model with a SGD/momentum optimizer
             # and a very slow learning rate.
-            optimizer = Nadam(lr=5e-4)
+            optimizer = Nadam(lr=5e-4, schedule_decay=0.001)
             model.compile(optimizer=optimizer,
                           loss='binary_crossentropy',
                           metrics=['accuracy']+f_scores)
