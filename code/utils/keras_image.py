@@ -179,7 +179,10 @@ def color_histogram_hsv(im, nbin=10, xmin=0, xmax=255, normalized=True,
   hsv = matplotlib.colors.rgb_to_hsv(im/xmax) * xmax
   hue = hsv[:, :, 0]
   if ignore_background:
-      hue = hue[np.nonzero(hue)]
+    hue = hue[np.nonzero(hue)]
+
+  if not hue:
+    return np.zeros(shape=(nbin,))
 
   imhist, bin_edges = np.histogram(hue, bins=bins, density=normalized)
   imhist = imhist * np.diff(bin_edges)
