@@ -159,7 +159,8 @@ def hog_feature(im):
   return orientation_histogram.ravel()
 
 
-def color_histogram_hsv(im, nbin=10, xmin=0, xmax=255, normalized=True):
+def color_histogram_hsv(im, nbin=10, xmin=0, xmax=255, normalized=True,
+                        ignore_background=True):
   """
   Compute color histogram for an image using hue.
   Inputs:
@@ -168,14 +169,19 @@ def color_histogram_hsv(im, nbin=10, xmin=0, xmax=255, normalized=True):
   - xmin: Minimum pixel value (default: 0)
   - xmax: Maximum pixel value (default: 255)
   - normalized: Whether to normalize the histogram (default: True)
+  - ignore_background: Whether to ignore "white" background, where hue == 0.
   Returns:
-    1D vector of length nbin giving the color histogram over the hue of the
-    input image.
+  1D vector of length nbin giving the color histogram over the hue of the
+  input image.
   """
   ndim = im.ndim
   bins = np.linspace(xmin, xmax, nbin+1)
   hsv = matplotlib.colors.rgb_to_hsv(im/xmax) * xmax
-  imhist, bin_edges = np.histogram(hsv[:,:,0], bins=bins, density=normalized)
+  hue = hsv[:, :, 0]
+  if ignore_background:
+      hue = hue[np.nonzero(hue)]
+
+  imhist, bin_edges = np.histogram(hue, bins=bins, density=normalized)
   imhist = imhist * np.diff(bin_edges)
 
   # return histogram
