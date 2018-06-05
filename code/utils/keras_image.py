@@ -1938,13 +1938,13 @@ class DirectoryIterator(Iterator):
 #         print('batch_size: "{}"'.format(batch_size))
 # #         batch_img_shape = (batch_size,) + self.image_shape
         image_dim = np.prod(self.image_shape)
-        features_dim = 12331  # TODO(minfa): adjust feature dim if feature_fns changes.
+        features_dim = 12321 + 50  # TODO(minfa): adjust feature dim if feature_fns changes.
 
-        num_color_bins = 10 # Number of bins in the color histogram
+        num_color_bins = 50 # Number of bins in the color histogram
 
         feature_fns = [
             hog_feature,
-            lambda img: color_histogram_hsv(img, xmin=0.0, xmax=1.0, nbin=num_color_bins)
+            lambda img: color_histogram_hsv(img, xmin=0.0, xmax=1.0, nbin=num_color_bins, ignore_background=True)
         ]
 
         batch_x = np.zeros(
