@@ -30,7 +30,7 @@ class WideDeep:
         self.wide_model_dir = self.params['wide_model_dir']
         self.deep_model_dir = self.params['deep_model_dir']
 
-        self.input = Input(shape=(299 * 299 * 3 + 12331,))
+        self.input = Input(shape=(299 * 299 * 3 + 12321 + 50,))
         self.model_file = os.path.join(self.model_dir, MODEL_BEST_NAME)
         self.model_checkpoint = os.path.join(self.model_dir, MODEL_CHECKPOINT_NAME)
 
@@ -54,10 +54,10 @@ class WideDeep:
         # The input for wide and deep should be the same
         wide_output = self.wide_model
         deep_output = self.deep_model
-        assert K.int_shape(wide_output) == (None, 12331), 'K.int_shape(wide_output): {}'.format(K.int_shape(wide_output))
+        assert K.int_shape(wide_output) == (None, 12371), 'K.int_shape(wide_output): {}'.format(K.int_shape(wide_output))
         assert K.int_shape(deep_output) == (None, 2048), 'K.int_shape(deep_output): {}'.format(K.int_shape(deep_output))
         x = Concatenate(axis=1)([wide_output, deep_output])
-        assert K.int_shape(x) == (None, 2048+12331), 'K.int_shape(x): {}'.format(K.int_shape(x))
+        assert K.int_shape(x) == (None, 2048+12371), 'K.int_shape(x): {}'.format(K.int_shape(x))
 
         # Build a dense layer on top of it
         predictions = Dense(self.num_classes, activation='sigmoid')(x)
