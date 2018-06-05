@@ -181,7 +181,7 @@ def color_histogram_hsv(im, nbin=10, xmin=0, xmax=255, normalized=True,
   if ignore_background:
     hue = hue[np.nonzero(hue)]
 
-  if not hue:
+  if not hue.size:
     return np.zeros(shape=(nbin,))
 
   imhist, bin_edges = np.histogram(hue, bins=bins, density=normalized)
