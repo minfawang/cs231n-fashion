@@ -125,7 +125,7 @@ python code/ensemble.py --pred_threshold=0.2 --ensemble_dir=/home/shared/ensembl
 #### Scratch Pad
 ```bash
 # Model from scratch:
-python code/keras_model_runner.py --mode=train --model_dir=model_dir/keras_xception/retrain/ --drop_out_rate=0.0 --reg=0.00001 --gpu_id=0 --batch_size=32 --steps_per_epoch=2500 --epochs=1000 --fine_tune
+python code/keras_model_runner.py --mode=train --model_dir=model_dir/keras_xception/retrain/ --drop_out_rate=0.2 --reg=0.00001 --gpu_id=0 --batch_size=32 --steps_per_epoch=2500 --epochs=1000 --fine_tune --initial_epoch=36
 
 # Model from scratch with sample weighting:
 python code/keras_model_runner.py --mode=train --model_dir=model_dir/keras_xception/retrain_weight/ --drop_out_rate=0.0 --reg=0.00001 --gpu_id=0 --batch_size=32 --steps_per_epoch=2500 --epochs=1000 --fine_tune --generator_use_weight

@@ -5,7 +5,7 @@ from keras.applications.xception import Xception as DeepModel
 from keras.preprocessing import image
 from keras import metrics
 from keras.models import Model
-from keras.layers import Dense, GlobalAveragePooling2D, Reshape, Input, Lambda, Concatenate
+from keras.layers import Dense, GlobalAveragePooling2D, Reshape, Input, Lambda, Concatenate, Dropout, LeakyReLU
 from utils.custom_metrics import FMetrics, FMetricsCallback
 from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard
 from keras.optimizers import Nadam
@@ -26,6 +26,7 @@ class WideDeep:
         self.num_classes = self.params['num_classes']
         self.fine_tune = self.params['fine_tune']
         self.reg = self.params['reg']
+        self.drop_out_rate = self.params['drop_out_rate']
 
         self.wide_model_dir = self.params['wide_model_dir']
         self.deep_model_dir = self.params['deep_model_dir']
@@ -52,12 +53,22 @@ class WideDeep:
 
         # Concatenate wide and deep feature vector
         # The input for wide and deep should be the same
-        wide_output = self.wide_model
+        wide_output_hog = Lambda(lambda x: x[:,:12321], output_shape=(12321,))(self.wide_model)
+        wide_output_clr = Lambda(lambda x: x[:,12321:], output_shape=(50,))(self.wide_model)
         deep_output = self.deep_model
-        assert K.int_shape(wide_output) == (None, 12371), 'K.int_shape(wide_output): {}'.format(K.int_shape(wide_output))
-        assert K.int_shape(deep_output) == (None, 2048), 'K.int_shape(deep_output): {}'.format(K.int_shape(deep_output))
-        x = Concatenate(axis=1)([wide_output, deep_output])
-        assert K.int_shape(x) == (None, 2048+12371), 'K.int_shape(x): {}'.format(K.int_shape(x))
+        assert K.int_shape(wide_output_hog) == (None, 12321), \
+            'K.int_shape(wide_output_hog): {}'.format(K.int_shape(wide_output_hog))
+        assert K.int_shape(wide_output_clr) == (None, 50), \
+            'K.int_shape(wide_output_clr): {}'.format(K.int_shape(wide_output_clr))
+        assert K.int_shape(deep_output) == (None, 2048), \
+            'K.int_shape(deep_output): {}'.format(K.int_shape(deep_output))
+        
+        # Shrink hog feature to limit parameter size
+        wide_output_hog = Dense(100)(wide_output_hog)
+        wide_output_hog = LeakyReLU(0.3)(wide_output_hog)
+        
+        x = Concatenate(axis=1)([wide_output_hog, wide_output_clr, deep_output])
+        assert K.int_shape(x) == (None, 2048+150), 'K.int_shape(x): {}'.format(K.int_shape(x))
 
         # Build a dense layer on top of it
         predictions = Dense(self.num_classes, activation='sigmoid')(x)
@@ -69,17 +80,18 @@ class WideDeep:
 
         if not enable_fine_tune:
             # compile the model (should be done *after* setting layers to non-trainable)
-            self.model.compile(optimizer='rmsprop',
+            optimizer = Nadam(lr=3.2e-3, schedule_decay=0.001)
+            self.model.compile(optimizer=optimizer,
                           loss='binary_crossentropy',
                           metrics=['accuracy']+f_scores)
         else:
             # compile the model with a SGD/momentum optimizer
             # and a very slow learning rate.
-            optimizer = Nadam(lr=3.2e-4)
+            optimizer = Nadam(lr=5e-4, schedule_decay=0.0001)
             self.model.compile(optimizer=optimizer,
                           loss='binary_crossentropy',
                           metrics=['accuracy']+f_scores)
-
+            
         print (self.model.summary())
         return self.model
 
@@ -95,12 +107,8 @@ class WideDeep:
         # add a global spatial max pooling layer
         x = deep_model.output  # (?, 10, 10, 2048)
         x = GlobalAveragePooling2D()(x) #(?, 2048)
-
-        # let's add a fully-connected layer
-        y = Dense(2048, activation='relu')(x)
-        # 228 classes
-
-        predictions = Dense(self.num_classes, activation='sigmoid')(y)
+        x = Dropout(rate=self.drop_out_rate)(x)
+        predictions = Dense(self.num_classes, activation='sigmoid')(x)
 
         # this is the model we will train
         model = Model(inputs=deep_model.input, outputs=predictions)
@@ -113,10 +121,7 @@ class WideDeep:
         else:
             print("@@@@@Fine tune enabled.@@@@@")
             print("Fine tune the last feature flow and the entire exit flow")
-            for layer in deep_model.layers[:116]:
-                layer.trainable = False
-
-            for layer in deep_model.layers[116:]:
+            for layer in deep_model.layers:
                 layer.trainable = True
                 layer.kernel_regularizer = regularizers.l2(self.reg)
 
