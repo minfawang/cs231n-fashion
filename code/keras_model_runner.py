@@ -94,12 +94,29 @@ if __name__ == '__main__':
     ##########################
     ##Prepare data generator##
     ##########################
+    generator_params = {
+        'generator_use_wad': FLAGS.generator_use_wad,
+        'generator_use_weight': False,
+        'train_label_to_weight_map_path': '',
+        'train_labels_count_to_weight_map_path': '',
+    }
+
     def get_train_generator():
         train_label_map = load_labels(json_path=train_label)
 
         # Read Data and Augment it: Make sure to select augmentations that are appropriate to your images.
         # To save augmentations un-comment save lines and add to your flow parameters.
-        train_datagen = ImageDataGenerator(rescale=1. / 255, horizontal_flip=True, vertical_flip=True, is_training=True)
+        train_generator_params = {
+            **generator_params,
+            'generator_use_weight': FLAGS.generator_use_weight,
+            'train_label_to_weight_map_path': FLAGS.train_label_to_weight_map_path,
+            'train_labels_count_to_weight_map_path': FLAGS.train_labels_count_to_weight_map_path,
+        }
+        train_datagen = ImageDataGenerator(rescale=1. / 255,
+                                           horizontal_flip=True,
+                                           vertical_flip=True,
+                                           is_training=True,
+                                           params=train_generator_params)
         #                                    rotation_range=transformation_ratio,
         #                                    shear_range=transformation_ratio,
         #                                    zoom_range=transformation_ratio,
@@ -121,7 +138,7 @@ if __name__ == '__main__':
 
     def get_validation_generator():
         valid_label_map = load_labels(json_path=valid_label)
-        validation_datagen = ImageDataGenerator(rescale=1. / 255)
+        validation_datagen = ImageDataGenerator(rescale=1. / 255, params=generator_params)
         validation_generator = validation_datagen.flow_from_directory(valid_data_dir,
                                                                       classes=range(num_classes),
                                                                       target_size=(IMG_SIZE, IMG_SIZE),
@@ -132,7 +149,7 @@ if __name__ == '__main__':
         return validation_generator
 
     def get_test_generator():
-        test_datagen = ImageDataGenerator(rescale=1./255)
+        test_datagen = ImageDataGenerator(rescale=1./255, params=generator_params)
         test_generator = test_datagen.flow_from_directory(test_data_dir,
                                                           classes=range(num_classes),
                                                           target_size=(IMG_SIZE, IMG_SIZE),

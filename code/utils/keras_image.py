@@ -20,15 +20,12 @@ import threading
 import warnings
 import multiprocessing.pool
 from functools import partial
-import tensorflow as tf
 import json
 
 # from .. import backend as K
 # from ..utils.data_utils import Sequence
 from keras.utils.data_utils import Sequence
 from keras import backend as K
-
-FLAGS = tf.app.flags.FLAGS
 
 
 
@@ -863,7 +860,8 @@ class ImageDataGenerator(object):
                  preprocessing_function=None,
                  data_format=None,
                  validation_split=0.0,
-                 is_training=False):
+                 is_training=False,
+                 params=None):
         if data_format is None:
             data_format = K.image_data_format()
         self.featurewise_center = featurewise_center
@@ -886,6 +884,8 @@ class ImageDataGenerator(object):
         self.rescale = rescale
         self.preprocessing_function = preprocessing_function
         self.is_training = is_training
+        assert params is not None, 'params is a required argument. In the model_runner, it is set from FLAGS.'
+        self._params = params
 
         if data_format not in {'channels_last', 'channels_first'}:
             raise ValueError(
@@ -1086,15 +1086,15 @@ class ImageDataGenerator(object):
                 of images with shape `(batch_size, *target_size, channels)`
                 and `y` is a numpy array of corresponding labels.
         """
-        if self.is_training and FLAGS.generator_use_weight:
-            with open(FLAGS.train_label_to_weight_map_path, 'r') as fin:
+        if self.is_training and self._params['generator_use_weight']:
+            with open(self._params['train_label_to_weight_map_path'], 'r') as fin:
                 self._label_id_to_weight_map = {
                     int(label_id) : float(weight)
                     for label_id, weight in json.load(fin).items()
                 }
                 assert len(self._label_id_to_weight_map) == 228
 
-            with open(FLAGS.train_labels_count_to_weight_map_path, 'r') as fin:
+            with open(self._params['train_labels_count_to_weight_map_path'], 'r') as fin:
                 self._labels_count_to_weight_map = {
                     int(labels_count) : float(weight)
                     for labels_count, weight in json.load(fin).items()
@@ -1968,7 +1968,7 @@ class DirectoryIterator(Iterator):
     def _get_batches_of_transformed_samples(self, index_array):
         batch_x = (
             self._get_batch_x_wad(index_array)
-            if FLAGS.generator_use_wad
+            if self.image_data_generator._params['generator_use_wad']
             else self._get_batch_x(index_array)
         )
 
@@ -2007,7 +2007,8 @@ class DirectoryIterator(Iterator):
         else:
             return batch_x
 
-        if self.image_data_generator.is_training and FLAGS.generator_use_weight:
+        if (self.image_data_generator.is_training and
+            self.image_data_generator._params['generator_use_weight']):
             batch_size = len(batch_x)
             batch_weight = np.zeros(shape=(batch_size,))
 
