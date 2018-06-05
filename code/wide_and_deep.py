@@ -63,8 +63,8 @@ class WideDeep:
         assert K.int_shape(deep_output) == (None, 2048), \
             'K.int_shape(deep_output): {}'.format(K.int_shape(deep_output))
         
-        # Shrink hog feature to limit parameter size
-        wide_output_hog = Dense(100)(wide_output_hog)
+        # Shrink hog feature to limit parameter size with L2 regularization
+        wide_output_hog = Dense(100, kernel_regularizer=regularizers.l2(self.reg))(wide_output_hog)
         wide_output_hog = LeakyReLU(0.3)(wide_output_hog)
         
         x = Concatenate(axis=1)([wide_output_hog, wide_output_clr, deep_output])

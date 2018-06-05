@@ -88,8 +88,8 @@ if __name__ == '__main__':
 
     # Get model
 #     model = KerasDenseNet(params)
-#     model = KerasXception(params)
-    model = WideDeep(params)
+    model = KerasXception(params)
+#     model = WideDeep(params)
 
     ##########################
     ##Prepare data generator##
