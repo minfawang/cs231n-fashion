@@ -8,6 +8,7 @@ from utils.keras_image import ImageDataGenerator
 from estimator.input_fn import load_labels
 from xception import KerasXception
 from wide_and_deep import WideDeep
+from xception_rnn import KerasXceptionRNN
 # from xception_v2 import KerasXception
 # from densenet169 import KerasDenseNet
 
@@ -44,6 +45,9 @@ tf.app.flags.DEFINE_bool('generator_use_weight', False, 'Whether to weight image
 tf.app.flags.DEFINE_string('train_label_to_weight_map_path', 'data/train_label_to_weight_map.json', 'train_label_to_weight_map_path.')
 tf.app.flags.DEFINE_string('train_labels_count_to_weight_map_path', 'data/train_labels_count_to_weight_map.json', 'train_labels_count_to_weight_map_path.')
 
+tf.app.flags.DEFINE_integer('gru_hidden_size', 20, '')
+tf.app.flags.DEFINE_bool('label_emb_trainable', True, '')
+tf.app.flags.DEFINE_bool('rnn_concat_all', True, '')
 
 FLAGS = tf.app.flags.FLAGS
 
@@ -83,13 +87,19 @@ if __name__ == '__main__':
         'wide_model_dir': FLAGS.wide_model_dir,
         'deep_model_dir': FLAGS.deep_model_dir,
         'drop_out_rate': FLAGS.drop_out_rate,
+        
+        'use_cudnn': True if FLAGS.gpu_id in ['0', '1'] else False,
+        'gru_hidden_size': FLAGS.gru_hidden_size,
+        'label_emb_trainable': FLAGS.label_emb_trainable,
+        'rnn_concat_all': FLAGS.rnn_concat_all,
     }
 
 
     # Get model
 #     model = KerasDenseNet(params)
-    model = KerasXception(params)
+#     model = KerasXception(params)
 #     model = WideDeep(params)
+    model = KerasXceptionRNN(params)
 
     ##########################
     ##Prepare data generator##
