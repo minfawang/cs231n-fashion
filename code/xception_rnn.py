@@ -59,47 +59,42 @@ class KerasXceptionRNN:
         x = GlobalAveragePooling2D()(x) #(?, 2048)
         
         x = Dropout(rate=self.drop_out_rate)(x)
+        assert K.int_shape(x) == (None, 2048)
         ##########################################
         # RNN begins
         # hidden_size: 20
         # embedding_size: 20
         # output_size: 20
-        h0 = Dense(self.gru_hidden_size)(x)
-        label_ids = K.constant([i for i in range(self.num_classes)], dtype='int32')
-#         label_ids = RepeatVector(K.shape(x)[0])(K.constant([i for i in range(self.num_classes)], dtype='int32'))
-        print(K.int_shape(label_ids))
         
-        label_ids = Multiply()([K.ones([K.shape(x)[0], self.num_classes], dtype='int32'), label_ids])
-        print(K.int_shape(x), K.shape(x)[0], K.int_shape(K.ones([K.shape(x)[0], self.num_classes], dtype='int32')))
-        print(K.int_shape(label_ids))
-        assert K.int_shape(label_ids) == (None, 228)
+        h0 = Dense(self.gru_hidden_size)(x)
+        hr = Dense(self.gru_hidden_size)(x)
+        assert K.int_shape(h0) == (None, self.gru_hidden_size), 'h0.shape: {}'.format(K.int_shape(h0))
+        
+        label_ids = K.constant([[1] * self.num_classes], dtype='int32')
+        assert K.int_shape(label_ids) == (1, 228)
+    
+        batch_size = K.shape(label_ids)[0]
+        batch_label_ids = K.tile(label_ids, [batch_size, 1])
+        assert K.int_shape(batch_label_ids) == (None, 228)
+    
         label_emb = Embedding(self.num_classes, self.gru_hidden_size, 
                               embeddings_initializer=self.__pretrained_label_embed,
-                              input_length=self.num_classes)(label_ids)
+                              input_length=self.num_classes)(batch_label_ids)
         assert K.int_shape(label_emb) == (None, 228, 20)
+        
         if not self.label_emb_trainable:
             label_emb.trainable = False
         
-        if self.use_cudnn:
-            label_gru_emb=Bidirectional(CuDNNGRU(self.gru_hidden_size,
-                                                 input_shape=(self.num_classes, self.gru_hidden_size),
-                                                 return_sequences=True))(label_emb)
-            assert K.shape(label_emb) == (None, 228, 40)
-            print(K.shape(label_gru_emb))
-        else:
-            label_gru_emb=Bidirectional(GRU(self.gru_hidden_size,
-                                            input_shape=(self.num_classes, self.gru_hidden_size),
-                                            return_sequences=True))(label_emb, initial_state=h0)
+        gru_fn = CuDNNGRU if self.use_cudnn else GRU
+        label_gru_emb=Bidirectional(gru_fn(self.gru_hidden_size,
+                                           input_shape=(self.num_classes, self.gru_hidden_size),
+                                           return_sequences=True))(label_emb, initial_state=[h0, hr])
+        assert K.int_shape(label_gru_emb) == (None, 228, 40)
         
         # Approach 1: use a giant fully connect
         if self.rnn_concat_all:
             label_gru_emb = Reshape([self.num_classes*self.gru_hidden_size*2])(label_gru_emb)
             print(K.shape(label_gru_emb))
-            print(K.shape(label_gru_emb))
-            print(K.shape(label_gru_emb))
-            
-            print(K.shape(x))
-            print(K.shape(x))
             print(K.shape(x))
             x = Concatenate(axis=1)([label_gru_emb, x])
             predictions = Dense(self.num_classes, activation='sigmoid')(x)
