@@ -42,7 +42,7 @@ class KerasXceptionRNN:
             os.makedirs(self.model_dir)
         elif os.path.exists(self.model_file):
             # load the model weights
-            print ("Load model weights from %s"%(self.model_file))
+            print ("@@@@Load model weights from %s"%(self.model_file))
             self.model.load_weights(self.model_file)
     
     def __pretrained_label_embed(self, shape, dtype=None):
@@ -63,10 +63,10 @@ class KerasXceptionRNN:
         
         ## Load pretrained deep weigths
         if not os.path.exists(self.model_file) and os.path.exists(os.path.join(self.deep_model_dir,MODEL_BEST_NAME)):
-            print ("Load DEEP model weights from %s"%(self.deep_model_dir))
+            print ("@@@@Load DEEP model weights from %s"%(self.deep_model_dir))
             pred = Dense(self.num_classes, activation='sigmoid')(x)
             model = Model(inputs=base_model.input, outputs=pred)
-            model.load_weights(os.path.exists(os.path.join(self.deep_model_dir,MODEL_BEST_NAME)))
+            model.load_weights(os.path.join(self.deep_model_dir,MODEL_BEST_NAME))
         ## Load DONE
         
         ##########################################
