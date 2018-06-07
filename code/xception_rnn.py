@@ -4,7 +4,7 @@ from keras.applications.xception import Xception
 from keras.preprocessing import image
 from keras import metrics
 from keras.models import Model
-from keras.layers import Dense, GlobalAveragePooling2D, Dropout, Embedding, Bidirectional, GRU, CuDNNGRU, TimeDistributed, Reshape, Concatenate, RepeatVector, Multiply
+from keras.layers import Dense, GlobalAveragePooling2D, Dropout, Embedding, Bidirectional, GRU, CuDNNGRU, TimeDistributed, Reshape, Concatenate, RepeatVector, Multiply, Lambda
 from utils.custom_metrics import FMetrics, FMetricsCallback
 from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard
 from keras.optimizers import Nadam
@@ -70,11 +70,8 @@ class KerasXceptionRNN:
         hr = Dense(self.gru_hidden_size)(x)
         assert K.int_shape(h0) == (None, self.gru_hidden_size), 'h0.shape: {}'.format(K.int_shape(h0))
         
-        label_ids = K.constant([[1] * self.num_classes], dtype='int32')
-        assert K.int_shape(label_ids) == (1, 228)
-    
-        batch_size = K.shape(label_ids)[0]
-        batch_label_ids = K.tile(label_ids, [batch_size, 1])
+        batch_label_ids = Lambda(lambda h: K.ones(shape=(K.shape(h)[0], 228), dtype=np.int32),
+                                 output_shape=(228,))(h0)
         assert K.int_shape(batch_label_ids) == (None, 228)
     
         label_emb = Embedding(self.num_classes, self.gru_hidden_size, 
@@ -94,8 +91,6 @@ class KerasXceptionRNN:
         # Approach 1: use a giant fully connect
         if self.rnn_concat_all:
             label_gru_emb = Reshape([self.num_classes*self.gru_hidden_size*2])(label_gru_emb)
-            print(K.shape(label_gru_emb))
-            print(K.shape(x))
             x = Concatenate(axis=1)([label_gru_emb, x])
             predictions = Dense(self.num_classes, activation='sigmoid')(x)
     
