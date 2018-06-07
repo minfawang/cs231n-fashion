@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import tensorflow as tf
 from keras.applications.xception import Xception
 from keras.preprocessing import image
 from keras import metrics
@@ -13,6 +14,10 @@ from keras import backend as K
 
 MODEL_BEST_NAME = 'top_model_weights.h5'
 MODEL_CHECKPOINT_NAME = 'model_weights-{epoch:02d}-{val_acc:.2f}.hdf5'
+
+setattr(tf.contrib.rnn.GRUCell, '__deepcopy__', lambda self, _: self)
+setattr(tf.contrib.rnn.BasicLSTMCell, '__deepcopy__', lambda self, _: self)
+setattr(tf.contrib.rnn.MultiRNNCell, '__deepcopy__', lambda self, _: self)
 
 class KerasXceptionRNN:
     
@@ -79,10 +84,19 @@ class KerasXceptionRNN:
         hr = Dense(self.gru_hidden_size)(x)
         assert K.int_shape(h0) == (None, self.gru_hidden_size), 'h0.shape: {}'.format(K.int_shape(h0))
         
-        label_ids = K.constant([i for i in range(self.num_classes)], dtype='int32')
-        batch_label_ids = Lambda(lambda h: K.ones(shape=(K.shape(h)[0], 228), dtype='int32')*label_ids,
-                                 output_shape=(228,))(h0)
+        label_ids = Lambda(lambda h: K.arange(self.num_classes, dtype='int32'))(h0)
+        
+        def batch_labels(h, label_ids):
+            # check: https://github.com/keras-team/keras/issues/8343
+            # check: https://stackoverflow.com/questions/47066635/checkpointing-keras-model-typeerror-cant-pickle-thread-lock-objects
+            label_id_tf = K.constant(label_ids, dtype='int32')
+            return K.ones(shape=(K.shape(h)[0], 228), dtype='int32')*label_id_tf
+        
+        batch_label_ids = Lambda(batch_labels,
+                                 output_shape=(228,),
+                                 arguments={'label_ids':np.array([i for i in range(228)])})(h0)
         assert K.int_shape(batch_label_ids) == (None, 228)
+
         label_emb = Embedding(self.num_classes, self.gru_hidden_size, 
                               embeddings_initializer=self.__pretrained_label_embed,
                               input_length=self.num_classes)(batch_label_ids)
@@ -173,7 +187,7 @@ class KerasXceptionRNN:
                                  max_queue_size=max_queue_size,
                                  workers=workers,
                                  validation_data=validation_data,
-                                 validation_steps=validation_steps,
+                                 validation_steps=1,
                                  callbacks=callbacks_list,
                                  initial_epoch=initial_epoch)
     
