@@ -187,7 +187,7 @@ class KerasXceptionRNN:
                                  max_queue_size=max_queue_size,
                                  workers=workers,
                                  validation_data=validation_data,
-                                 validation_steps=1,
+                                 validation_steps=validation_steps,
                                  callbacks=callbacks_list,
                                  initial_epoch=initial_epoch)
     
