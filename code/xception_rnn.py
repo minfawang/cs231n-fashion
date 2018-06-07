@@ -82,7 +82,8 @@ class KerasXceptionRNN:
         if not self.label_emb_trainable:
             label_emb.trainable = False
         
-        gru_fn = CuDNNGRU if self.use_cudnn else GRU
+#         gru_fn = CuDNNGRU if self.use_cudnn else GRU
+        gru_fn = GRU
         label_gru_emb=Bidirectional(gru_fn(self.gru_hidden_size,
                                            input_shape=(self.num_classes, self.gru_hidden_size),
                                            return_sequences=True))(label_emb, initial_state=[h0, hr])
