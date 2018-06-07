@@ -83,9 +83,6 @@ class KerasXceptionRNN:
         batch_label_ids = Lambda(lambda h: K.ones(shape=(K.shape(h)[0], 228), dtype='int32')*label_ids,
                                  output_shape=(228,))(h0)
         assert K.int_shape(batch_label_ids) == (None, 228)
-        print(batch_label_ids)
-        print(batch_label_ids)        
-        print(batch_label_ids)    
         label_emb = Embedding(self.num_classes, self.gru_hidden_size, 
                               embeddings_initializer=self.__pretrained_label_embed,
                               input_length=self.num_classes)(batch_label_ids)
