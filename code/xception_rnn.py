@@ -62,11 +62,11 @@ class KerasXceptionRNN:
         assert K.int_shape(x) == (None, 2048)
         
         ## Load pretrained deep weigths
-        if not os.path.exists(self.model_file) and os.path.exists(self.deep_model_dir+MODEL_BEST_NAME):
+        if not os.path.exists(self.model_file) and os.path.exists(os.path.join(self.deep_model_dir,MODEL_BEST_NAME)):
             print ("Load DEEP model weights from %s"%(self.deep_model_dir))
             pred = Dense(self.num_classes, activation='sigmoid')(x)
             model = Model(inputs=base_model.input, outputs=pred)
-            model.load_weights(self.deep_model_dir+MODEL_BEST_NAME)
+            model.load_weights(os.path.exists(os.path.join(self.deep_model_dir,MODEL_BEST_NAME)))
         ## Load DONE
         
         ##########################################
