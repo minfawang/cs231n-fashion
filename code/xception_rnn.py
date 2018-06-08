@@ -8,7 +8,7 @@ from keras.models import Model
 from keras.layers import Dense, GlobalAveragePooling2D, Dropout, Embedding, Bidirectional, GRU, CuDNNGRU, TimeDistributed, Reshape, Concatenate, RepeatVector, Multiply, Lambda
 from utils.custom_metrics import FMetrics, FMetricsCallback
 from keras.callbacks import ModelCheckpoint, EarlyStopping, TensorBoard
-from keras.optimizers import Nadam, RMSProp
+from keras.optimizers import Nadam, RMSprop
 from keras import regularizers
 from keras import backend as K
 
@@ -140,7 +140,7 @@ class KerasXceptionRNN:
                 layer.trainable = False
 
             # compile the model (should be done *after* setting layers to non-trainable)
-            optimizer = RMSProp(lr=5e-4, decay=0.002)
+            optimizer = RMSprop(lr=5e-4, decay=0.001)
             model.compile(optimizer=optimizer, 
                           loss='binary_crossentropy',
                           metrics=['accuracy']+f_scores)
