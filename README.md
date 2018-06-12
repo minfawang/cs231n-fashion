@@ -2,7 +2,11 @@
 
 We are using the dataset from the following Kaggle competition: [iMaterialist Challenge (Fashion) at FGVC5](https://www.kaggle.com/c/imaterialist-challenge-fashion-2018/).
 
-The project proposal is available at [CS231N_Project_Proposal.pdf](./CS231N_Project_Proposal.pdf).
+Here are major documents of the project:
+
+* Final Report: [cs231n_final_report.pdf](./cs231n_final_report.pdf).
+* Poster [cs231n_poster_24x36.pdf](./cs231n_poster_24x36.pdf).
+* Project Proposal: [cs231n_project_proposal.pdf](./cs231n_project_proposal.pdf)
 
 # Setup
 
